@@ -234,6 +234,7 @@ To establish Z-Ant as the premier tinyML inference engine, we are pursuing sever
 1. **Run existing tests**: Use `zig build test --summary all` to understand the codebase
 2. **Try code generation**: Use `zig build codegen -Dmodel=mnist-1` to see the workflow
 3. **Read the documentation**: Check `/docs/` folder for detailed guides
+4. **Review the Hackathon Guide**: For specific guidance on the rendering and lowering pipeline, refer to the [HackathonGuide.md](./HackathonGuide.md).
 
 ### Project Architecture
 
