@@ -10,6 +10,8 @@ const ModelOnnx = onnx.ModelProto;
 const DataType = onnx.DataType;
 const allocator = zant.utils.allocator.allocator;
 
+const mathHandler_log = std.log.scoped(.mathHandler);
+
 // --- proto libs
 const TensorProto = onnx.TensorProto;
 const NodeProto = onnx.NodeProto;
@@ -86,12 +88,20 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_div(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "DynamicQuantizeLinear")) {
         try write_dynamicQuantizeLinear(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Elu")) {
+        try write_elu(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Flatten")) {
-        try writer.writeAll("// Handle Flatten\n");
+        try write_flatten(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Floor")) {
+        try write_floor(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Squeeze")) {
+        try write_squeeze(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gather")) {
         try write_gather(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gemm")) {
         try write_gemm(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Gelu")) {
+        try write_gelu(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Identity")) {
         try write_identity(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "LeakyRelu")) {
@@ -107,7 +117,7 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Neg")) {
         try write_neg(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "OneHot")) {
-        try writer.writeAll("// Handle OneHot\n");
+        try write_oneHot(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Pad")) {
         try write_pads(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "ReduceMean")) {
@@ -126,6 +136,8 @@ pub fn write_math_op(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         try write_slice(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Split")) {
         try write_split(writer, node);
+    } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sqrt")) {
+        try write_sqrt(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sub")) {
         try write_sub(writer, node);
     } else if (std.mem.eql(u8, node.nodeProto.op_type, "Sum")) {
@@ -204,7 +216,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+        tensor_A_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
     }
 
     //----create tensor_B_string
@@ -217,7 +229,7 @@ inline fn write_add(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             ")",
         });
     } else {
-        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name) });
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
     }
 
     _ = try writer.print(
@@ -287,7 +299,7 @@ inline fn write_BatchNormalization(writer: std.fs.File.Writer, node: *ReadyNode)
         tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
     }
 
-    //----create tensor_scale_string
+    //----create tensor_B_string
     var tensor_B_string: []u8 = undefined;
     defer allocator.free(tensor_B_string);
 
@@ -348,9 +360,9 @@ inline fn write_BatchNormalization(writer: std.fs.File.Writer, node: *ReadyNode)
         \\        &tensor_{s}, //output
         \\    )
     , .{
-        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type),
-        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[1].?.name).?.tensorProto.?.data_type),
-        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[3].?.name).?.tensorProto.?.data_type),
+        try getSafeTensorTypeString(node.inputs.items[0].?, node.nodeProto.name orelse "UnnamedBatchNormInput0"), // MODIFIED: Use helper for input X type
+        try getSafeTensorTypeString(node.inputs.items[1].?, node.nodeProto.name orelse "UnnamedBatchNormInput1"), // MODIFIED: Use helper for input scale type
+        try getSafeTensorTypeString(node.inputs.items[3].?, node.nodeProto.name orelse "UnnamedBatchNormInput3"), // MODIFIED: Use helper for input mean/var type (check ONNX spec for correct index if this is not mean's type)
         tensor_X_string,
         tensor_scale_string,
         tensor_B_string,
@@ -359,6 +371,97 @@ inline fn write_BatchNormalization(writer: std.fs.File.Writer, node: *ReadyNode)
         epsilon,
         momentum,
         try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_oneHot(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__OneHot.html
+    // INPUTS:
+    //      - indices (heterogeneous) - T1: Tensor of indices.
+    //      - depth (heterogeneous) - T2: Scalar tensor for depth.
+    //      - values (heterogeneous) - T3: Tensor of shape [off_value, on_value].
+    // OUTPUT:
+    //      - output (heterogeneous) - T3: Output tensor with one-hot encoding.
+    // ATTRIBUTES:
+    //      - axis - INT (default is -1): Axis along which to add the one-hot dimension.
+
+    var axis: i64 = -1; // Default axis per ONNX
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "axis")) {
+            if (attr.type != AttributeType.INT) return error.InvalidAxisType;
+            axis = attr.i;
+        }
+    }
+
+    //----create indices string
+    var indices_string: []u8 = undefined;
+    defer allocator.free(indices_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        indices_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        indices_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    //----create depth string
+    var depth_string: []u8 = undefined;
+    defer allocator.free(depth_string);
+    if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
+        depth_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].?.name),
+            ")",
+        });
+    } else {
+        depth_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].?.name),
+            ")",
+        });
+    }
+
+    //----create values string
+    var values_string: []u8 = undefined;
+    defer allocator.free(values_string);
+    if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+        values_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[2].?.name),
+            ")",
+        });
+    } else {
+        values_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[2].?.name),
+            ")",
+        });
+    }
+
+    _ = try writer.print(
+        \\    
+        \\
+        \\    tensMath.oneHot_lean(
+        \\        {s}, // T
+        \\        {s}, // indices
+        \\        {s}.data[0], // depth (scalare)
+        \\        {s}, // values
+        \\        {}, // axis
+        \\        &tensor_{s}, // output
+        \\    )
+    , .{
+        try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[2].?.name).?.tensorProto.?.data_type), // T
+        indices_string, // indices
+        depth_string, // depth
+        values_string, // values
+        axis, // axis
+        try utils.getSanitizedName(node.outputs.items[0].name), // output
     });
 }
 
@@ -584,7 +687,7 @@ inline fn write_concat(writer: std.fs.File.Writer, node: *ReadyNode) !void {
                 \\
                 \\    // Special case for concatenation along axis 0 with different ranks
                 \\    // This requires custom handling as the standard concatenate function expects same rank
-                \\    std.debug.print("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
+                \\    mathHandler_log.warn("\\nWarning: Concatenating tensors with different ranks along axis 0\\n", .{{}});
                 \\
                 \\    // Create a list of tensors to concatenate
                 \\    var concat_tensor_list_{s} = [_]Tensor(T){{
@@ -787,7 +890,7 @@ inline fn write_constant(writer: std.fs.File.Writer, node: *ReadyNode) !void {
                 \\    // Sparse tensor constants are not yet fully supported
                 \\    // Creating a placeholder tensor for sparse_value
                 \\    tensor_{s} = Tensor(T).initScalar(&allocator, 0) catch return;
-                \\    std.debug.print("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
+                \\    mathHandler_log.warn("Warning: sparse_value attribute used but not fully supported\\n", .{{}});
             , .{output_name});
             return;
         }
@@ -902,7 +1005,6 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\    
         \\    const usize_slice_{s} = utils.sliceToUsizeSlice({s}.data);
         \\    var usize_tensor_{s} = Tensor(usize).fromConstBuffer(&allocator, usize_slice_{s}, {s}.shape);
-        \\    defer usize_tensor_{s}.deinit();
         \\    defer allocator.free(usize_slice_{s});
         \\    
     , .{
@@ -911,7 +1013,6 @@ inline fn write_gather(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         indices_name, //usize_tensor_
         indices_name, //usize_slice_
         indices_tensor_string, //tensor_.shape
-        indices_name, //usize_tensor_.deinit
         indices_name, //usize_slice_ for free
     });
 
@@ -1061,7 +1162,7 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // Get type information for tensor B to estimate element size
     const input_B_name = node.inputs.items[1].?.name;
     const ready_tensor_B = globals.tensorHashMap.getPtr(input_B_name) orelse {
-        std.debug.print("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
+        mathHandler_log.warn("Error: Tensor '{s}' not found in globals.tensorHashMap for MatMul.\n", .{input_B_name});
         return error.TensorNotFound;
     };
 
@@ -1078,18 +1179,18 @@ inline fn write_matmul(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             .UINT8 => @sizeOf(u8),
             // Add other supported types as needed
             else => blk: {
-                std.debug.print("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
+                mathHandler_log.warn("Warning: Unsupported DataType '{any}' for MatMul input B '{s}'. Assuming f32 size.\n", .{ data_type, input_B_name });
                 break :blk 4;
             },
         };
     } else {
         // Fallback if tensorProto is null - log a warning
-        std.debug.print("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
+        mathHandler_log.warn("Warning: TensorProto for MatMul input B '{s}' is null. Assuming f32 size for width calculation.\n", .{input_B_name});
     }
 
     const b_dims = node.inputs.items[1].?.shape.len;
     if (b_dims == 0) {
-        std.debug.print("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
+        mathHandler_log.warn("Error: MatMul input B '{s}' has zero dimensions.\n", .{input_B_name});
         return error.InvalidShape; // Avoid panic on empty shape
     }
 
@@ -1250,7 +1351,7 @@ inline fn write_averagePool(writer: std.fs.File.Writer, node: *ReadyNode) !void 
     //      - pads - INTS: Padding for each spatial axis
     //      - strides - INTS: Stride along each spatial axis (default 1)
 
-    std.debug.print("DEBUG: write_averagePool called for node: {s}\n", .{node.nodeProto.name orelse "unnamed"});
+    mathHandler_log.debug("DEBUG: write_averagePool called for node: {s}\n", .{node.nodeProto.name orelse "unnamed"});
 
     var auto_pad: []const u8 = "NOTSET";
     var ceil_mode: i64 = 0;
@@ -1531,6 +1632,162 @@ inline fn write_ReLU(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_elu(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Elu.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output tensor
+    // ATTRIBUTES:
+    //      - alpha - FLOAT (default is '1.0'): Coefficient of ELU operator
+
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    const tensor_type = try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type);
+
+    // alpha attribute
+    var alpha: f32 = 1.0;
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "alpha")) {
+            if (attr.type != AttributeType.FLOAT) {
+                return error.InvalidAttributeType;
+            }
+            alpha = attr.f;
+        }
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.elu_lean(
+        \\        {s}, // type
+        \\        {s}, // input
+        \\        &tensor_{s}, // output
+        \\        {d} // alpha
+        \\    )
+    , .{
+        tensor_type,
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+        alpha,
+    });
+}
+
+inline fn write_flatten(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Flatten.html
+    // INPUTS:
+    //      - data (heterogeneous) - T: Input tensor of any shape.
+    // OUTPUTS:
+    //      - output (heterogeneous) - T: Output tensor with shape [outer_dim, inner_dim].
+    // ATTRIBUTES:
+    //      - axis - INT (default is '1'): Indicate up to which input dimension should be flattened.
+
+    //----create tensor_input_string
+    var tensor_input_string: []u8 = undefined;
+    defer allocator.free(tensor_input_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    const tensor_type = try utils.getTypeString(globals.tensorHashMap.getPtr(node.inputs.items[0].?.name).?.tensorProto.?.data_type);
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.flatten_lean(
+        \\        {s}, // type
+        \\        {s}, // input
+        \\        &tensor_{s}, // output
+        \\    )
+    , .{
+        tensor_type,
+        tensor_input_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_squeeze(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+
+    // Squeeze - 23 : https://onnx.ai/onnx/operators/onnx__Squeeze.html
+    // Inputs:
+    //  - data (heterogeneous) - T: Tensors with at least max(dims) dimensions
+    //  - axes (optional, heterogeneous) - tensor(int64): List of integers indicating the dimensions to squeeze
+    //      Negative value means counting dimensions from the back
+    //      Accepted range is [-r, r-1] where r = rank(data)
+    // Outputs:
+    //  - squeezed (heterogeneous) - T: Reshaped tensor with same data as input
+
+    var tensor_input_string: []u8 = undefined;
+    defer allocator.free(tensor_input_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    }
+
+    var tensor_type: []const u8 = undefined;
+    const input_ready_tensor = globals.tensorHashMap.getPtr(node.inputs.items[0].?.name);
+
+    if (input_ready_tensor) |rt| {
+        if (rt.tensorProto) |tp| {
+            tensor_type = try utils.getTypeString(tp.data_type);
+        } else {
+            // Fallback if tensorProto is null
+            mathHandler_log.warn("Warning: tensorProto is null for Squeeze input '{s}'. Falling back to f32 type.\n", .{node.inputs.items[0].?.name});
+            tensor_type = "f32";
+        }
+    } else {
+        // Fallback if ReadyTensor is not found in the map
+        mathHandler_log.warn("Warning: ReadyTensor not found for Squeeze input '{s}'. Falling back to f32 type.\n", .{node.inputs.items[0].?.name});
+        tensor_type = "f32";
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.squeeze_lean(
+        \\        {s}, // type
+        \\        {s}, // input
+        \\        &tensor_{s}, // output
+        \\    )
+    , .{
+        tensor_type,
+        tensor_input_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
 inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Reshape.html
     // Inputs:
@@ -1580,7 +1837,7 @@ inline fn write_reshape(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     } else {
         // Shape from input tensor
         if (node.inputs.items.len < 2) {
-            std.debug.print("ERROR: Reshape node '{s}' requires a 'shape' attribute or a second input tensor, but neither was found during code generation.", .{node.nodeProto.name orelse "-"});
+            mathHandler_log.warn("ERROR: Reshape node '{s}' requires a 'shape' attribute or a second input tensor, but neither was found during code generation.", .{node.nodeProto.name orelse "-"});
             return error.ShapeNotFound;
         }
         const shape_input_tensor = node.inputs.items[1].?;
@@ -2078,6 +2335,67 @@ inline fn write_transpose(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     });
 }
 
+inline fn write_floor(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__Floor.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input tensor
+    // OUTPUTS:
+    //      - Y (heterogeneous) - T: Output tensor with floor of input elements (If x is integral, +0, -0, NaN, or infinite, x itself is returned)
+
+    // Create input tensor string
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.floor_lean(T, {s}, &tensor_{s})
+    , .{
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_gelu(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    var approximate: []const u8 = "none";
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.eql(u8, attr.name, "approximate")) {
+            if (attr.type == AttributeType.STRING) approximate = attr.s;
+        }
+    }
+
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\    tensMath.gelu_lean(T, {s}, "{s}", &tensor_{s})
+    , .{
+        input_tensor_string,
+        approximate,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
 inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
     // https://onnx.ai/onnx/operators/onnx__Tanh.html
     // INPUTS:
@@ -2103,6 +2421,30 @@ inline fn write_tanh(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\
         \\
         \\    tensMath.tanh_lean(T, {s}, &tensor_{s})
+    , .{
+        input_tensor_string,
+        try utils.getSanitizedName(node.outputs.items[0].name),
+    });
+}
+
+inline fn write_sqrt(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    var input_tensor_string: []u8 = undefined;
+    defer allocator.free(input_tensor_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        input_tensor_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name) });
+    }
+
+    _ = try writer.print(
+        \\
+        \\
+        \\    tensMath.sqrt_lean(T, {s}, &tensor_{s})
     , .{
         input_tensor_string,
         try utils.getSanitizedName(node.outputs.items[0].name),
@@ -2390,22 +2732,13 @@ inline fn write_split(writer: std.fs.File.Writer, node: *ReadyNode) !void {
         \\        if (size_to_copy > 0) {{
         \\            @memcpy(output_ptrs_{0s}[i].data[0..size_to_copy], src.data[0..size_to_copy]);
         \\        }}
-        \\
-        \\        // Update the shape if needed
-        \\        if (!output_ptrs_{0s}[i].owns_memory) {{
-        \\            // Shape is pre-allocated statically, just update if needed
-        \\            const shape_size_to_copy = @min(src.shape.len, output_ptrs_{0s}[i].shape.len);
-        \\            if (shape_size_to_copy > 0) {{
-        \\                @memcpy(output_ptrs_{0s}[i].shape[0..shape_size_to_copy], src.shape[0..shape_size_to_copy]);
-        \\            }}
-        \\        }} else {{
-        \\            // This is a dynamically allocated shape, replace it
-        \\            if (output_ptrs_{0s}[i].shape.len > 0) {{
-        \\                allocator.free(output_ptrs_{0s}[i].shape);
-        \\            }}
-        \\            output_ptrs_{0s}[i].shape = allocator.dupe(usize, src.shape) catch @panic("Out of memory");
+        \\     
+        \\        // Shape is pre-allocated statically, just update if needed
+        \\        const shape_size_to_copy = @min(src.shape.len, output_ptrs_{0s}[i].shape.len);
+        \\        if (shape_size_to_copy > 0) {{
+        \\            @memcpy(output_ptrs_{0s}[i].shape[0..shape_size_to_copy], src.shape[0..shape_size_to_copy]);
         \\        }}
-        \\
+        \\        
         \\        // Update the size
         \\        output_ptrs_{0s}[i].size = src.size;
         \\    }}
@@ -2959,16 +3292,16 @@ inline fn write_cast(writer: std.fs.File.Writer, node: *ReadyNode) !void {
             // Fallback to tensorProto if dtype is not set
             source_type = tp.data_type;
         } else {
-            std.debug.print("Error: Could not determine source type for Cast input '{s}' from either dtype or tensorProto\n", .{node.inputs.items[0].?.name});
+            mathHandler_log.warn("Error: Could not determine source type for Cast input '{s}' from either dtype or tensorProto\n", .{node.inputs.items[0].?.name});
             return error.DataTypeNotFound; // Or another appropriate error
         }
     } else {
-        std.debug.print("Error: Cast input tensor '{s}' not found in map\n", .{node.inputs.items[0].?.name});
+        mathHandler_log.warn("Error: Cast input tensor '{s}' not found in map\n", .{node.inputs.items[0].?.name});
         return error.TensorNotFound; // Or another appropriate error
     }
 
     if (source_type == DataType.UNDEFINED) {
-        std.debug.print("Error: Determined source type for Cast input '{s}' is UNDEFINED\n", .{node.inputs.items[0].?.name});
+        mathHandler_log.warn("Error: Determined source type for Cast input '{s}' is UNDEFINED\n", .{node.inputs.items[0].?.name});
         return error.DataTypeNotFound;
     }
     // --- End safe source type retrieval ---
@@ -3166,5 +3499,167 @@ inline fn write_convInteger(writer: std.fs.File.Writer, node: *ReadyNode) !void 
         dilat_string, // Dilations
         group, // Group
         auto_pad, // auto_pad
+    });
+}
+
+// Helper function to safely get tensor type string
+fn getSafeTensorTypeString(input_node_item: *globals.ReadyTensor, parent_node_name: []const u8) ![]const u8 {
+    const input_name = input_node_item.name; // Name is not optional on ReadyTensor
+    const tensor_global = input_node_item; // tensor_global is the input_node_item itself
+
+    // Prioritize ReadyTensor.dtype if available and valid
+    if (tensor_global.dtype != .UNDEFINED) {
+        return utils.getTypeString(tensor_global.dtype);
+    }
+
+    // Fallback to tensorProto if dtype is not available/valid
+    const onnx_tensor_proto = tensor_global.tensorProto orelse {
+        std.log.err(
+            \\Error in node '{s}': tensorProto is null AND ReadyTensor.dtype is UNDEFINED for input tensor '{s}'.
+            \\Tensor details: ready={}, tag={s}, shape={any}, dtype={s}.
+            \\This means type information is missing for this tensor.
+        , .{
+            parent_node_name,
+            input_name,
+            tensor_global.ready,
+            @tagName(tensor_global.tag),
+            tensor_global.shape,
+            @tagName(tensor_global.dtype), // Also log the dtype
+        });
+        return error.CodegenMissingTypeInformation; // New, more specific error (ensure this is defined)
+    };
+
+    return utils.getTypeString(onnx_tensor_proto.data_type);
+}
+
+inline fn write_batch_norm(writer: std.fs.File.Writer, node: *ReadyNode) !void {
+    // https://onnx.ai/onnx/operators/onnx__BatchNormalization.html
+    // INPUTS:
+    //      - X (heterogeneous) - T: Input data tensor from the previous operator; dimensions are in the form of (N x C x D1 x D2 … Dn), where N is the batch size, C is the number of channels. Statistics are computed for every channel of C over N and D1 to Dn dimensions. For image data, input dimensions become (N x C x H x W). The op also accepts single dimension input of size N in which case C is assumed to be 1
+    //      - scale (heterogeneous) - T1: Scale tensor of shape ©.
+    //      - B (heterogeneous) - T1: Bias tensor of shape ©.
+    //      - input_mean (heterogeneous) - T2: running (training) or estimated (testing) mean tensor of shape ©.
+    //      - input_var (heterogeneous) - T2: running (training) or estimated (testing) variance tensor of shape ©.
+    // OUTPUT:
+    //      - Y (heterogeneous) - T: The output tensor of the same shape as X
+    // ATTRIBUTES:
+    //      - epsilon - FLOAT (default is '1e-05'): The epsilon value to use to avoid division by zero.
+    //      - momentum - FLOAT (default is '0.9'): Factor used in computing the running mean and variance.e.g., running_mean = running_mean * momentum + mean * (1 - momentum).
+    //      - training_mode - INT (default is '0'): If set to true, it indicates BatchNormalization is being used for training, and outputs 1 and 2 are to be computed.
+
+    var epsilon: f32 = 1e-05;
+    var momentum: f32 = 0.9;
+    // var training_mode: bool = false; -> NOT USED, ALWAYS FALSE for Zant
+
+    for (node.nodeProto.attribute) |attr| {
+        if (std.mem.indexOf(u8, attr.name, "epsilon")) |_| {
+            if (attr.type == AttributeType.FLOAT) epsilon = attr.f else return error.BatchNorm_epsilon_NotFloat;
+        } else if (std.mem.indexOf(u8, attr.name, "momentum")) |_| {
+            if (attr.type == AttributeType.FLOAT) momentum = attr.f else return error.BatchNorm_momentum_NotFloat;
+        } else if (std.mem.indexOf(u8, attr.name, "training_mode")) |_| {
+            if (attr.type == AttributeType.INT) if (attr.i != 0) return error.BatchNorm_training_NotAvailable;
+        }
+    }
+
+    //----create tensor_X_string
+    var tensor_X_string: []u8 = undefined;
+    defer allocator.free(tensor_X_string);
+
+    if (node.inputs.items[0].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[0].?.name),
+            ")",
+        });
+    } else {
+        tensor_X_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[0].?.name), ")" });
+    }
+
+    //----create tensor_scale_string
+    var tensor_scale_string: []u8 = undefined;
+    defer allocator.free(tensor_scale_string);
+
+    if (node.inputs.items[1].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[1].?.name),
+            ")",
+        });
+    } else {
+        tensor_scale_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[1].?.name), ")" });
+    }
+
+    //----create tensor_scale_string
+    var tensor_B_string: []u8 = undefined;
+    defer allocator.free(tensor_B_string);
+
+    if (node.inputs.items[2].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[2].?.name),
+            ")",
+        });
+    } else {
+        tensor_B_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[2].?.name), ")" });
+    }
+
+    //----create tensor_input_mean_string
+    var tensor_input_mean_string: []u8 = undefined;
+    defer allocator.free(tensor_input_mean_string);
+
+    if (node.inputs.items[3].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[3].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_mean_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[3].?.name), ")" });
+    }
+
+    //----create tensor_input_var_string
+    var tensor_input_var_string: []u8 = undefined;
+    defer allocator.free(tensor_input_var_string);
+
+    if (node.inputs.items[4].?.tag == globals.TensorTag.INITIALIZER) {
+        tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{
+            "@constCast(&param_lib.tensor_",
+            try utils.getSanitizedName(node.inputs.items[4].?.name),
+            ")",
+        });
+    } else {
+        tensor_input_var_string = try std.mem.concat(allocator, u8, &[_][]const u8{ "@constCast(&tensor_", try utils.getSanitizedName(node.inputs.items[4].?.name), ")" });
+    }
+
+    // pub inline fn batchNormalization_lean( comptime T: anytype, comptime T1: anytype, comptime T2: anytype, input: *Tensor(T), scales: *Tensor(T1), B: *Tensor(T1), input_mean: Tensor(T2), input_var: Tensor(T2), epsilon: f32, momentum: f32, training_mode: bool, output: *Tensor(T))
+    _ = try writer.print(
+        \\    
+        \\
+        \\    tensMath.batchNormalization_lean(
+        \\        {s}, //type 0
+        \\        {s}, //type 1
+        \\        {s}, //type 2
+        \\        {s}, //input
+        \\        {s}, //scales
+        \\        {s}, //B
+        \\        {s}, //input_mean
+        \\        {s}, //input_var
+        \\        {}, //epsilon
+        \\        {}, //momentum
+        \\        false, //training_mode
+        \\        &tensor_{s}, //output
+        \\    )
+    , .{
+        try getSafeTensorTypeString(node.inputs.items[0].?, node.nodeProto.name orelse "UnnamedBatchNormInput0"), // MODIFIED: Use helper for input X type
+        try getSafeTensorTypeString(node.inputs.items[1].?, node.nodeProto.name orelse "UnnamedBatchNormInput1"), // MODIFIED: Use helper for input scale type
+        try getSafeTensorTypeString(node.inputs.items[3].?, node.nodeProto.name orelse "UnnamedBatchNormInput3"), // MODIFIED: Use helper for input mean/var type (check ONNX spec for correct index if this is not mean's type)
+        tensor_X_string,
+        tensor_scale_string,
+        tensor_B_string,
+        tensor_input_mean_string,
+        tensor_input_var_string,
+        epsilon,
+        momentum,
+        try utils.getSanitizedName(node.outputs.items[0].name),
     });
 }

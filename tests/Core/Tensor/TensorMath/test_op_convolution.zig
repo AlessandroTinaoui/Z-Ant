@@ -5,8 +5,16 @@ const TensMath = zant.core.tensor.math_standard;
 const Tensor = zant.core.tensor.Tensor;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
+const lowerConv2d = zant.core.tensor.math_standard.lowerConv2d;
+
+const tests_log = std.log.scoped(.test_conv);
+
 test "Convolution 4D Input with 2x2x2x2 Kernel shape" {
-    std.debug.print("\n     test: Convolution 4D Input with 2x2x2x2 Kernel shape\n", .{});
+    tests_log.info("\n     test: Convolution 4D Input with 2x2x2x2 Kernel shape\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -131,7 +139,7 @@ test "Convolution 4D Input with 2x2x2x2 Kernel shape" {
                 output_location[2] = row;
                 for (0..2) |col| {
                     output_location[3] = col;
-                    //std.debug.print("\n get OUTPUT at:{any}", .{output_location});
+                    //tests_log.info("\n get OUTPUT at:{any}", .{output_location});
                     try std.testing.expectEqual(expected_result[batch][filter][row][col], result_tensor.get_at(output_location));
                 }
             }
@@ -140,7 +148,7 @@ test "Convolution 4D Input with 2x2x2x2 Kernel shape" {
 }
 
 test "OnnxConvLean - NOTSET padding" {
-    std.debug.print("\n     test: OnnxConvLean - NOTSET padding\n", .{});
+    tests_log.info("\n     test: OnnxConvLean - NOTSET padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -197,7 +205,7 @@ test "OnnxConvLean - NOTSET padding" {
 }
 
 test "OnnxConvLean - SAME_UPPER padding" {
-    std.debug.print("\n     test: OnnxConvLean - SAME_UPPER padding\n", .{});
+    tests_log.info("\n     test: OnnxConvLean - SAME_UPPER padding\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -243,15 +251,15 @@ test "OnnxConvLean - SAME_UPPER padding" {
     try TensMath.conv_lean(f32, &input_tensor, &kernel_tensor, &output_tensor, null, &stride, null, null, null, auto_pad);
 
     // Add debug prints for padded input
-    std.debug.print("\nKernel values:\n", .{});
+    tests_log.debug("\nKernel values:\n", .{});
     var k_row: usize = 0;
     while (k_row < 3) : (k_row += 1) {
         var k_col: usize = 0;
         while (k_col < 3) : (k_col += 1) {
             const idx = k_row * 3 + k_col;
-            std.debug.print("{d:4.1} ", .{kernel_tensor.data[idx]});
+            tests_log.debug("{d:4.1} ", .{kernel_tensor.data[idx]});
         }
-        std.debug.print("\n", .{});
+        tests_log.debug("\n", .{});
     }
 
     try std.testing.expectEqual(@as(usize, 1), output_tensor.shape[0]); // batch
@@ -268,39 +276,39 @@ test "OnnxConvLean - SAME_UPPER padding" {
         4, 6, 6, 6, 4,
     };
 
-    std.debug.print("\nResult shape: {any}\n", .{output_tensor.shape});
-    std.debug.print("\nActual values:\n", .{});
+    tests_log.debug("\nResult shape: {any}\n", .{output_tensor.shape});
+    tests_log.debug("\nActual values:\n", .{});
     var row: usize = 0;
     while (row < 5) : (row += 1) {
         var col: usize = 0;
         while (col < 5) : (col += 1) {
             const idx = row * 5 + col;
-            std.debug.print("{d:4.1} ", .{output_tensor.data[idx]});
+            tests_log.debug("{d:4.1} ", .{output_tensor.data[idx]});
         }
-        std.debug.print("\n", .{});
+        tests_log.debug("\n", .{});
     }
 
-    std.debug.print("\nExpected values:\n", .{});
+    tests_log.debug("\nExpected values:\n", .{});
     row = 0;
     while (row < 5) : (row += 1) {
         var col: usize = 0;
         while (col < 5) : (col += 1) {
             const idx = row * 5 + col;
-            std.debug.print("{d:4.1} ", .{expected_values[idx]});
+            tests_log.debug("{d:4.1} ", .{expected_values[idx]});
         }
-        std.debug.print("\n", .{});
+        tests_log.debug("\n", .{});
     }
 
     for (output_tensor.data, 0..) |val, i| {
         if (val != expected_values[i]) {
-            std.debug.print("\nMismatch at index {d}: expected {d}, got {d}\n", .{ i, expected_values[i], val });
+            tests_log.debug("\nMismatch at index {d}: expected {d}, got {d}\n", .{ i, expected_values[i], val });
         }
         try std.testing.expectEqual(expected_values[i], val);
     }
 }
 
 test "OnnxConvLean - with bias and dilation" {
-    std.debug.print("\n     test: OnnxConvLean - with bias and dilation\n", .{});
+    tests_log.info("\n     test: OnnxConvLean - with bias and dilation\n", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -362,7 +370,7 @@ test "OnnxConvLean - with bias and dilation" {
 }
 
 test "OnnxConv - all padding modes and features" {
-    std.debug.print("\n     test: OnnxConv - all padding modes and features\n", .{});
+    tests_log.info("\n     test: OnnxConv - all padding modes and features\n", .{});
 
     const allocator = pkgAllocator.allocator;
 

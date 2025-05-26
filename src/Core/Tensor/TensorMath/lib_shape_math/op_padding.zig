@@ -30,7 +30,7 @@ pub fn addPaddingAndDilation(
 
     const new_row_numb = t.shape[dim - 2] + upPadding + downPadding + verticalDil * (t.shape[dim - 2] - 1);
     const new_col_numb = t.shape[dim - 1] + leftPadding + rightPadding + horizontalDil * (t.shape[dim - 1] - 1);
-    //std.debug.print("\n new_row_numb: {} new_col_numb:{}", .{ new_row_numb, new_col_numb });
+    //std.log.debug("\n new_row_numb: {} new_col_numb:{}", .{ new_row_numb, new_col_numb });
 
     //compute new shape
     const new_shape = try t.allocator.alloc(usize, dim);

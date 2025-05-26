@@ -18,6 +18,8 @@ pub const FunctionProto = @import("functionProto.zig").FunctionProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.onnx);
+
 pub const Version = enum(i64) {
     IR_VERSION_2017_10_10 = 0x0000000000000001,
     IR_VERSION_2017_10_30 = 0x0000000000000002,
@@ -122,7 +124,7 @@ pub fn tensorSizeInBytes(tensor: *const TensorProto) usize {
         .DOUBLE, .INT64, .UINT64, .COMPLEX64 => 8, // 8-byte types
         .COMPLEX128 => 16, // 16-byte types
         else => {
-            std.debug.print("Warning: Unknown data type {} in tensor, assuming 4 bytes per element\n", .{tensor.data_type});
+            onnx_log.warn("Warning: Unknown data type {} in tensor, assuming 4 bytes per element\n", .{tensor.data_type});
             return 4 * num_elements; // Default to 4 bytes for unknown types
         },
     };

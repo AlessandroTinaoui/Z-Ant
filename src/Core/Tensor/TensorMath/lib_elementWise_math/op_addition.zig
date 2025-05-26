@@ -6,7 +6,10 @@ const pkg_allocator = zant.utils.allocator.allocator;
 const error_handler = zant.utils.error_handler;
 const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
-
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 const ArchitectureError = error_handler.ArchitectureError;
 const Converter = zant.utils.type_converter;
 
@@ -79,7 +82,7 @@ fn calculate_broadcasted_shape(alloc: *const std.mem.Allocator, shape1_in: []con
         if (shape1_padded[dim] != shape2_padded[dim] and shape1_padded[dim] != 1 and shape2_padded[dim] != 1) {
             // Need to free out_shape before returning error
             alloc.free(out_shape);
-            std.debug.print("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1_padded[dim], shape2_padded[dim] }); // DEBUG PRINT
+            std.log.warn("Incompatible broadcast shapes at dim {}: {} vs {}\n", .{ dim, shape1_padded[dim], shape2_padded[dim] }); // DEBUG PRINT
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         out_shape[dim] = @max(shape1_padded[dim], shape2_padded[dim]);
@@ -128,9 +131,9 @@ pub fn sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1
 
 // --------- lean SUM
 pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *const Tensor(inputType), t2: *const Tensor(inputType), outputTensor: *Tensor(outputType)) !void {
-    // std.debug.print("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
-    // std.debug.print("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
-    // std.debug.print("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
+    // std.log.debug("\nINFO: Summing tensors with sizes: {d}, {d}\n", .{ t1.size, t2.size }); // DEBUG PRINT
+    // std.log.debug("\nINFO: t1 shape: {any}, t2 shape: {any}\n", .{ t1.shape, t2.shape }); // DEBUG PRINT
+    // std.log.debug("\nINFO: outputTensor shape: {any}\n", .{outputTensor.shape}); // DEBUG PRINT
     // // Simple case: same size tensors
     if (t1.size == t2.size) {
         // Use unrolled loop for small sizes to avoid SIMD overhead
@@ -231,7 +234,7 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
         @memset(full_output_shape_slice[0..output_rank_diff], 1); // Pad with leading 1s
     }
     @memcpy(full_output_shape_slice[output_rank_diff..], outputTensor.shape);
-    // std.debug.print("DEBUG: Original output shape: {any}, Reconstructed full shape: {any}\\n", .{ outputTensor.shape, full_output_shape_slice });
+    // std.log.debug("DEBUG: Original output shape: {any}, Reconstructed full shape: {any}\\n", .{ outputTensor.shape, full_output_shape_slice });
     // --- END WORKAROUND ---
 
     // Calculate strides from right to left using the reconstructed full shape
@@ -248,34 +251,44 @@ pub inline fn lean_sum_tensors(comptime inputType: anytype, comptime outputType:
 
     // Perform addition with broadcasting
     // Use stack arrays for common tensor ranks (up to 4D) - indices were already allocated above
-    var stack_loop_indices: [4]usize = [_]usize{0} ** 4;
-    const loop_indices = if (max_rank <= 4) stack_loop_indices[0..max_rank] else indices; // Reuse allocated 'indices' if max_rank > 4
-
-    // Initialize loop_indices if using the stack allocation
+    const loop_indices = if (max_rank <= 4) stack_indices[0..max_rank] else try pkg_allocator.alloc(usize, max_rank);
+    if (max_rank > 4) {
+        defer pkg_allocator.free(loop_indices);
+    }
     if (max_rank <= 4) {
         @memset(loop_indices, 0);
     }
 
-    i = 0; // Reset i before the loop, don't redeclare
+    i = 0; // Reset i before the loop
     while (i < outputTensor.size) : (i += 1) {
         // Calculate multi-dimensional indices for current output position 'i'
-        var temp = i;
-        for (0..max_rank) |dim| {
-            const idx = max_rank - 1 - dim; // Iterate dimensions from right-to-left
-            loop_indices[idx] = temp / out_strides[idx];
-            temp = temp % out_strides[idx];
+        var current_flat_index = i;
+        for (0..max_rank) |dim| { // Iterate dimensions from 0 to max_rank-1
+            const current_stride = out_strides[dim];
+            // Calculate index for this dimension
+            loop_indices[dim] = @divFloor(current_flat_index, current_stride);
+            // Update remaining index for the next, smaller dimensions
+            current_flat_index = @mod(current_flat_index, current_stride);
         }
 
-        // Calculate linear input indices (idx1, idx2) using multi-dimensional indices and strides
+        // Calculate linear input indices (idx1, idx2) using multi-dimensional indices
+        // Respect broadcasting: only add stride contribution if dimension is not broadcasted
         var idx1: usize = 0;
         var idx2: usize = 0;
         for (0..max_rank) |dim| {
-            // stridesN[dim] is 0 if shapeN[dim] is 1, handling broadcasting implicitly
-            idx1 += loop_indices[dim] * strides1[dim];
-            idx2 += loop_indices[dim] * strides2[dim];
+            const current_loop_index = loop_indices[dim];
+            // If shape1[dim] is 1, strides1[dim] is 0, so this adds 0. Correct.
+            idx1 += current_loop_index * strides1[dim];
+
+            // If shape2[dim] is 1, strides2[dim] is 0, so this adds 0. Correct.
+            idx2 += current_loop_index * strides2[dim];
         }
 
         // Perform the addition
+        // Ensure indices are within bounds (should be implicitly handled by stride calculation, but belt-and-suspenders)
+        // idx1 = @min(idx1, t1.size - 1); // Optional safety, maybe remove if confident
+        // idx2 = @min(idx2, t2.size - 1); // Optional safety, maybe remove if confident
+
         outputTensor.data[i] = t1.data[idx1] + t2.data[idx2];
     }
 }
@@ -325,4 +338,48 @@ pub inline fn lean_sum_tensor_list(comptime inputType: anytype, comptime outputT
             outputTensor.data[i] += t.data[i];
         }
     }
+}
+/// Lower an ONNX "Add" with NumPy-style broadcasting into UOps,
+/// **without** emitting a final FUSE hint.
+pub fn lowerAdd(
+    b: *UOpBuilder,
+    A_id: usize, // input-tensor SSA ids
+    B_id: usize,
+    out_shape: []const usize, // broadcasted shape
+    strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
+    strideB: []const isize,
+    out_dtype: DType, // promoted element type
+) usize { // returns id of result buffer
+    // ── Set-up phase ────────────────────────────────────────────────────
+    // _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+    // _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)
+
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
+
+    const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideB } });
+
+    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── Flat element loop ───────────────────────────────────────────────
+    var nelem: usize = 1;
+    for (out_shape) |d| nelem *= d;
+
+    const id_range = b.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+
+    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+    const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
+
+    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+    const id_loadB = b.push(.LOAD, out_dtype, &.{id_gepB}, null);
+
+    const id_add = b.push(.ADD, out_dtype, &.{ id_loadA, id_loadB }, null);
+
+    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_add }, null);
+
+    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+
+    return id_outBuf; // SSA id of the output tensor
 }

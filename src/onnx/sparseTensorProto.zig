@@ -6,6 +6,8 @@ const TensorProto = @import("tensorProto.zig").TensorProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
 
 //TAGS:
@@ -61,7 +63,7 @@ pub const SparseTensorProto = struct {
                     try dim_list.append(@intCast(d));
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for sparseTensorProto\n\n ", .{sp_tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for sparseTensorProto\n\n ", .{sp_tag});
                     try reader.skipField(sp_tag.wire_type);
                 },
             }

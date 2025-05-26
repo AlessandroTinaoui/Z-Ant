@@ -33,7 +33,7 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: Model
     const lib_file_path = try std.fmt.allocPrint(allocator, "{s}lib_{s}.zig", .{ model_path, model_name });
     defer allocator.free(lib_file_path);
     var lib_file = try std.fs.cwd().createFile(lib_file_path, .{});
-    std.debug.print("\n .......... file created, path:{s}", .{lib_file_path});
+    std.log.info("\n .......... file created, path:{s}", .{lib_file_path});
     defer lib_file.close();
 
     const lib_writer = lib_file.writer();
@@ -42,7 +42,7 @@ pub fn writeZigFile(model_name: []const u8, model_path: []const u8, model: Model
     const params_file_path = try std.fmt.allocPrint(allocator, "{s}static_parameters.zig", .{model_path});
     defer allocator.free(params_file_path);
     var param_file = try std.fs.cwd().createFile(params_file_path, .{});
-    std.debug.print("\n .......... file created, path:{s}", .{params_file_path});
+    std.log.info("\n .......... file created, path:{s}", .{params_file_path});
     defer param_file.close();
 
     const param_writer = param_file.writer();

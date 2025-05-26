@@ -93,25 +93,13 @@ pub fn split_lean(comptime T: type, input_tensor: *Tensor(T), axis: i64, split_s
         for (shape) |dim| {
             total_size *= dim;
         }
-
-        // Free the old shape if it exists
-        if (output_tensors.*[i].shape.len > 0 and output_tensors.*[i].owns_memory) {
-            input_tensor.allocator.free(output_tensors.*[i].shape);
-        }
-
         // Transfer ownership of the shape to the output tensor
         output_tensors.*[i].shape = shape;
-
-        // Free the old data if it exists and the tensor owns it
-        if (output_tensors.*[i].data.len > 0 and output_tensors.*[i].owns_memory) {
-            input_tensor.allocator.free(output_tensors.*[i].data);
-        }
 
         // Allocate new data
         output_tensors.*[i].data = try input_tensor.allocator.alloc(T, total_size);
         output_tensors.*[i].size = total_size;
         output_tensors.*[i].allocator = input_tensor.allocator;
-        output_tensors.*[i].owns_memory = true;
     }
 
     // Copy data from input tensor to output tensors

@@ -126,7 +126,7 @@ inline fn write_graphSerialization(writer: std.fs.File.Writer) !void {
     } else {
         //check the output tensor name is the same
         if (!std.mem.eql(u8, globals.networkOutput.name, lastNode.outputs.items[0].name)) {
-            std.debug.print("\n\n   ERROR!!\n    DifferentOutputNames: \n      {s} vs {s}\n    LastNode:{s}\n\n", .{ globals.networkOutput.name, lastNode.outputs.items[0].name, lastNode.nodeProto.name.? });
+            std.log.warn("\n\n   ERROR!!\n    DifferentOutputNames: \n      {s} vs {s}\n    LastNode:{s}\n\n", .{ globals.networkOutput.name, lastNode.outputs.items[0].name, lastNode.nodeProto.name.? });
             lastNode.print(true);
             return error.DifferentOutputNames;
         }
@@ -334,7 +334,7 @@ fn write_OutputTensor(writer: std.fs.File.Writer, output: *ReadyTensor, size: i6
 
     // --- ADD CHECK FOR UNDEFINED TYPE ---
     if (output.dtype == .UNDEFINED) {
-        std.debug.print("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph analysis in globals.zig.\n\n", .{output.name});
+        std.log.warn("\n\nCODEGEN ERROR: Attempted to generate output tensor '{s}' but its data type is UNDEFINED. Check ONNX graph analysis in globals.zig.\n\n", .{output.name});
         return error.DataTypeNotAvailable; // Or a more specific error like CannotGenerateUndefinedType
     }
     // --- END CHECK ---

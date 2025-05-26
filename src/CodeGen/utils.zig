@@ -105,7 +105,7 @@ pub inline fn getSanitizedName(name: []const u8) ![]const u8 {
             '_';
     }
 
-    //std.debug.print("\nfrom {s} to {s} ", .{ name, sanitized });
+    //std.log.debug("\nfrom {s} to {s} ", .{ name, sanitized });
 
     return sanitized;
 }
@@ -127,7 +127,7 @@ pub inline fn getComputableNodes(readyGraph: *std.ArrayList(ReadyNode)) !std.Arr
             }
             if (ready_input_counter + null_input_counter == node.inputs.items.len) {
                 try set.append(node);
-                //std.debug.print("\n    --- {s} is computable", .{node.nodeProto.name.?});
+                //std.log.debug("\n    --- {s} is computable", .{node.nodeProto.name.?});
             }
             ready_input_counter = 0;
             null_input_counter = 0;
@@ -159,12 +159,12 @@ pub fn getTensorShape(tensorName: []const u8) ?[]i64 {
 
 // Marks output tensors as ready for computation in all the graph
 pub fn setOutputsReady(completedNode: *ReadyNode, tensorHashMap: *std.StringHashMap(ReadyTensor)) !void {
-    std.debug.print("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name orelse "(unnamed)"});
+    std.log.info("\n -----> set {s} outputs to ready", .{completedNode.nodeProto.name orelse "(unnamed)"});
     completedNode.ready = true;
     for (completedNode.outputs.items) |ready_output_tensor| { //for each output tensor of the completed node
         var mutablePtr: *ReadyTensor = if (tensorHashMap.getPtr(ready_output_tensor.name)) |V_ptr| V_ptr else return error.keyNotAvailable;
         mutablePtr.ready = true;
-        std.debug.print("\n    {s} --> ready", .{mutablePtr.name});
+        std.log.info("\n    {s} --> ready", .{mutablePtr.name});
     }
 }
 
@@ -219,20 +219,20 @@ pub fn isOutput(name: []const u8) bool {
 pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
     std.debug.print("\n-------------------------------------------------------------", .{});
     std.debug.print("\n+                        READY GRAPH                        +", .{});
-    std.debug.print("\n-------------------------------------------------------------", .{});
+    std.debug.print("\n-------------------------------------------------------------\n", .{});
     for (graph.items) |node| {
-        std.debug.print("\n ----- node: {s}", .{node.nodeProto.name.?});
+        std.log.info("\n ----- node: {s}", .{node.nodeProto.name.?});
 
-        std.debug.print("\n          inputs: ", .{});
+        std.log.info("\n          inputs: ", .{});
         // Write the inputs
         for (node.inputs.items) |input| {
-            std.debug.print("\n              ->{s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
+            std.log.info("\n              ->{s} {s}", .{ input.name, if (input.ready) "--->ready" else "" });
         }
 
-        std.debug.print("\n          outputs:", .{});
+        std.log.info("\n          outputs:", .{});
         // Write the outputs
         for (node.outputs.items) |output| {
-            std.debug.print("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
+            std.log.info("\n              -> {s} {s}", .{ output.name, if (output.ready) "--->ready" else "" });
         }
     }
 }
@@ -242,7 +242,7 @@ pub fn printNodeList(graph: std.ArrayList(ReadyNode)) !void {
 pub fn printComputableNodes(computableNodes: std.ArrayList(*ReadyNode), details: bool) !void {
     std.debug.print("\n------------------------------------------------------------", .{});
     std.debug.print("\n+                  COMPUTABLE NODES  n:{}                  +", .{computableNodes.items.len});
-    std.debug.print("\n------------------------------------------------------------", .{});
+    std.debug.print("\n------------------------------------------------------------\n", .{});
 
     for (computableNodes.items) |node| {
         node.print(details);
@@ -255,7 +255,7 @@ pub fn printOperations(graph: *GraphProto) !void {
     std.debug.print("\n", .{});
     std.debug.print("\n-------------------------------------------------", .{});
     std.debug.print("\n+                ONNX operations                +", .{});
-    std.debug.print("\n-------------------------------------------------", .{});
+    std.debug.print("\n-------------------------------------------------\n", .{});
 
     var op_set = std.StringHashMap(void).init(std.heap.page_allocator);
     defer op_set.deinit();
@@ -266,7 +266,7 @@ pub fn printOperations(graph: *GraphProto) !void {
 
     var it = op_set.iterator();
     while (it.next()) |entry| {
-        std.debug.print("\n- {s}", .{entry.key_ptr.*});
+        std.log.debug("\n- {s}", .{entry.key_ptr.*});
     }
 
     std.debug.print("\n-------------------------------------------------\n", .{});
@@ -276,15 +276,15 @@ pub fn printOperations(graph: *GraphProto) !void {
 pub fn printTensorHashMap(map: std.StringHashMap(ReadyTensor)) void {
     std.debug.print("\n-------------------------------------------------------------", .{});
     std.debug.print("\n+                       READY HASHMAP                       +", .{});
-    std.debug.print("\n-------------------------------------------------------------", .{});
+    std.debug.print("\n-------------------------------------------------------------\n", .{});
 
     var it = map.iterator();
     while (it.next()) |entry| {
         const key = entry.key_ptr.*;
         const tensor = entry.value_ptr.*;
-        std.debug.print("\nTensor Name: {s}", .{key});
-        std.debug.print("\n     Ready: {}", .{tensor.ready});
-        std.debug.print("\n     Shape: [{any}]", .{tensor.shape});
+        std.log.info("\nTensor Name: {s}", .{key});
+        std.log.info("\n     Ready: {}", .{tensor.ready});
+        std.log.info("\n     Shape: [{any}]", .{tensor.shape});
     }
 }
 
@@ -488,16 +488,17 @@ pub fn parseNumbers(input: []const u8) ![]i64 {
 }
 
 pub fn i64SliceToUsizeArrayString(values: []const i64) ![]const u8 {
-    var buffer: [20]u8 = undefined;
-    var res_string = try std.mem.concat(allocator, u8, &[_][]const u8{"&[_]usize{"});
-    for (values, 0..) |val, i| {
-        if (i > 0) res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, "," });
-        const val_string = std.fmt.bufPrint(&buffer, "{}", .{val}) catch unreachable;
-        res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, val_string });
-    }
-    res_string = try std.mem.concat(allocator, u8, &[_][]const u8{ res_string, "}" });
+    var list = std.ArrayList(u8).init(allocator);
+    defer list.deinit(); // Frees all memory
 
-    return res_string;
+    try list.appendSlice("&[_]usize{");
+    for (values, 0..) |val, i| {
+        if (i > 0) try list.append(',');
+        try list.writer().print("{}", .{val});
+    }
+    try list.append('}');
+
+    return try list.toOwnedSlice(); // Caller must free this!
 }
 
 // ----------------- FILE MANAGEMENT -----------------
@@ -535,7 +536,7 @@ pub fn loadUserTests(comptime T: type, user_tests_path: []const u8) !std.json.Pa
 pub fn parseI64RawData(raw_data: []const u8) ![]i64 {
     const element_size = @sizeOf(i64);
     if (raw_data.len % element_size != 0) {
-        std.debug.print("ERROR: Raw data length ({}) is not a multiple of i64 size ({})\n", .{ raw_data.len, element_size });
+        std.log.warn("ERROR: Raw data length ({}) is not a multiple of i64 size ({})\n", .{ raw_data.len, element_size });
         return error.InvalidRawDataSize;
     }
 
@@ -552,7 +553,7 @@ pub fn parseI64RawData(raw_data: []const u8) ![]i64 {
     // Fallback: Use pointer casting to interpret raw bytes as i64 (assumes alignment and little-endian)
     // Ensure alignment (optional, might panic on some archs if unaligned)
     // if (@alignOf(i64) > @alignOf(u8) and @ptrToInt(raw_data.ptr) % @alignOf(i64) != 0) {
-    //     std.debug.print("ERROR: Raw data pointer is not aligned for i64 read.\n", .{});
+    //     std.log.warn("ERROR: Raw data pointer is not aligned for i64 read.\n", .{});
     //     return error.UnalignedRawData;
     // }
 

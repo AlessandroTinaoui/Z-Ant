@@ -5,7 +5,10 @@ const Tensor = zant.core.tensor.Tensor; // Import Tensor type
 const pkg_allocator = zant.utils.allocator.allocator;
 const error_handler = zant.utils.error_handler;
 const TensorMathError = error_handler.TensorMathError;
-
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 /// Performs element-wise binary subtraction with Numpy-style broadcasting support
 pub fn sub_tensors(comptime inputType: anytype, comptime outputType: anytype, t1: *Tensor(inputType), t2: *Tensor(inputType)) !Tensor(outputType) {
     // CHECKS:
@@ -204,4 +207,48 @@ pub inline fn lean_sub_tensors(comptime inputType: anytype, comptime outputType:
 
         outputTensor.data[i] = t1.data[idx1] - t2.data[idx2];
     }
+}
+/// https://onnx.ai/onnx/operators/onnx__Sub.html
+pub fn lowerSub(
+    b: *UOpBuilder,
+    A_id: usize, // input-tensor SSA ids
+    B_id: usize,
+    out_shape: []const usize, // broadcasted shape
+    strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
+    strideB: []const isize,
+    out_dtype: DType, // promoted element type
+) usize { // returns id of result buffer
+
+    // // ── Set-up phase ────────────────────────────────────────────────────
+    // _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+    // _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)
+
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
+
+    const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideB } });
+
+    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── Flat element loop ───────────────────────────────────────────────
+    var nelem: usize = 1;
+    for (out_shape) |d| nelem *= d;
+
+    const id_range = b.push(.RANGE, .u16, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+
+    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+    const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
+
+    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+    const id_loadB = b.push(.LOAD, out_dtype, &.{id_gepB}, null);
+
+    const id_sub = b.push(.SUB, out_dtype, &.{ id_loadA, id_loadB }, null);
+
+    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_sub }, null);
+
+    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+
+    return id_outBuf; // SSA id of the output tensor
 }

@@ -17,6 +17,7 @@ const utils = codegen.utils;
 const mathGen = codegen.math_handler;
 const shapeGen = codegen.shape_handler;
 const codegen_options = @import("codegen_options");
+const globals_log = std.log.scoped(.globals);
 
 pub var readyGraph: std.ArrayList(ReadyNode) = std.ArrayList(ReadyNode).init(allocator);
 pub var tensorHashMap: std.StringHashMap(ReadyTensor) = std.StringHashMap(ReadyTensor).init(allocator); //key: TensorProto.name
@@ -105,11 +106,11 @@ pub const ReadyTensor = struct {
     }
 
     pub fn print(tensor: *ReadyTensor, detailed: bool) void {
-        std.debug.print("\n      READY TENSOR : {s}", .{tensor.name});
-        std.debug.print("\n         status:{s}ready", .{if (!tensor.ready) " not " else " "});
-        std.debug.print("\n         tag: {any}", .{tensor.tag});
-        std.debug.print("\n         shape: {any}", .{tensor.shape});
-        if (detailed) if (tensor.tensorProto) |tp| tp.print("         ") else std.debug.print("\n         tensor.tensorProto :(null)", .{});
+        globals_log.info("\n      READY TENSOR : {s}", .{tensor.name});
+        globals_log.info("\n         status:{s}ready", .{if (!tensor.ready) " not " else " "});
+        globals_log.info("\n         tag: {any}", .{tensor.tag});
+        globals_log.info("\n         shape: {any}", .{tensor.shape});
+        if (detailed) if (tensor.tensorProto) |tp| tp.print("         ") else globals_log.info("\n         tensor.tensorProto :(null)", .{});
     }
 };
 
@@ -122,7 +123,7 @@ pub const ReadyNode = struct {
 
     // Creates a ReadyNode by preparing its input and output tensors
     pub fn create(nodeProto: *NodeProto) !ReadyNode {
-        // std.debug.print("\n\nReadyNode.create() --> {s}", .{nodeProto.name.?});
+        // globals_log.info("\n\nReadyNode.create() --> {s}", .{nodeProto.name.?});
         var newReadyNode = ReadyNode{
             .nodeProto = nodeProto,
             .inputs = std.ArrayList(?*ReadyTensor).init(allocator),
@@ -143,7 +144,7 @@ pub const ReadyNode = struct {
 
             //adding the readyTensor to the model
             try newReadyNode.outputs.append(if (tensorHashMap.getPtr(output_name)) |V_ptr| V_ptr else return error.keyNotAvailable);
-            // std.debug.print("\n   added output {s} to node {s} ", .{ output_name, nodeProto.name.? });
+            // globals_log.info("\n   added output {s} to node {s} ", .{ output_name, nodeProto.name.? });
         }
 
         // -- COMPUTING THE OUTPUT SHAPE --
@@ -153,11 +154,11 @@ pub const ReadyNode = struct {
     }
 
     pub fn print(node: *ReadyNode, detailed: bool) void {
-        std.debug.print("\n ------ READY NODE : ", .{});
-        if (detailed) node.nodeProto.print("  ") else std.debug.print("\n {s} ", .{node.nodeProto.name.?});
-        std.debug.print("\n  ---inputs : ", .{});
-        for (node.inputs.items) |in| if (in) |i| i.print(detailed) else std.debug.print("\n      NULL INPUT", .{});
-        std.debug.print("\n  ---outputs : ", .{});
+        globals_log.info("\n ------ READY NODE : ", .{});
+        if (detailed) node.nodeProto.print("  ") else globals_log.info("\n {s} ", .{node.nodeProto.name.?});
+        globals_log.info("\n  ---inputs : ", .{});
+        for (node.inputs.items) |in| if (in) |i| i.print(detailed) else globals_log.info("\n      NULL INPUT", .{});
+        globals_log.info("\n  ---outputs : ", .{});
         for (node.outputs.items) |out| out.print(detailed);
     }
 };
@@ -192,7 +193,7 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
 
     //setting the output
     const outputs = model.graph.?.outputs;
-    std.debug.print("\n SETTING networkOutput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
+    globals_log.info("\n SETTING networkOutput \n name = {s} \n shape={any}", .{ outputs[0].name.?, outputs[0].type.?.tensor_type.?.shape.?.shape });
     networkOutput.name = outputs[0].name.?;
     networkOutput.shape = outputs[0].type.?.tensor_type.?.shape.?.shape;
 
@@ -200,12 +201,12 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     if (parsedInputshape.len > 0) {
         networkInput.shape = parsedInputshape;
     } else if (networkInput.shape.len == 0) {
-        std.debug.print("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
+        globals_log.warn("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
         return error.NoInputShape;
     }
 
     // Print the final input details AFTER potentially overriding shape
-    std.debug.print("\n FINAL networkInput \n name = {s} \n shape={any}", .{ networkInput.name, networkInput.shape });
+    globals_log.info("\n FINAL networkInput \n name = {s} \n shape={any}", .{ networkInput.name, networkInput.shape });
 
     //create the hashMap
     try populateReadyTensorHashMap(model);
@@ -227,7 +228,7 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
         }
     }
 
-    std.debug.print("\n NODE: {s}", .{model.graph.?.nodes[0].output[0]});
+    globals_log.info("\n NODE: {s}", .{model.graph.?.nodes[0].output[0]});
 }
 
 // ----------------------- HASH MAP -----------------------
@@ -359,7 +360,7 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
             // If type is still undefined, check common shape tensor naming patterns
             if (tensor_dtype == .UNDEFINED) {
                 if (std.mem.endsWith(u8, name, "_shape")) {
-                    std.debug.print("\nINFO: Tensor '{s}' type is UNDEFINED. Defaulting to INT64 based on name pattern (likely a shape tensor).", .{name});
+                    globals_log.info("\nINFO: Tensor '{s}' type is UNDEFINED. Defaulting to INT64 based on name pattern (likely a shape tensor).", .{name});
                     tensor_dtype = .INT64; // Default to INT64 for likely shape tensors
                 }
             }
@@ -370,13 +371,13 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
         if (std.mem.eql(u8, nodeProto.op_type, "DynamicQuantizeLinear")) {
             if (nodeProto.output.len >= 3) { // Check if node has expected outputs
                 if (std.mem.eql(u8, name, nodeProto.output[0])) {
-                    std.debug.print("\nINFO: Overriding dtype for DynamicQuantizeLinear output y '{s}' to UINT8.", .{name});
+                    globals_log.info("\nINFO: Overriding dtype for DynamicQuantizeLinear output y '{s}' to UINT8.", .{name});
                     tensor_dtype = .UINT8; // y output is u8
                 } else if (std.mem.eql(u8, name, nodeProto.output[1])) {
-                    std.debug.print("\nINFO: Overriding dtype for DynamicQuantizeLinear output y_scale '{s}' to FLOAT.", .{name});
+                    globals_log.info("\nINFO: Overriding dtype for DynamicQuantizeLinear output y_scale '{s}' to FLOAT.", .{name});
                     tensor_dtype = .FLOAT; // y_scale output is f32
                 } else if (std.mem.eql(u8, name, nodeProto.output[2])) {
-                    std.debug.print("\nINFO: Overriding dtype for DynamicQuantizeLinear output y_zero_point '{s}' to UINT8.", .{name});
+                    globals_log.info("\nINFO: Overriding dtype for DynamicQuantizeLinear output y_zero_point '{s}' to UINT8.", .{name});
                     tensor_dtype = .UINT8; // y_zero_point output is u8
                 }
             }
@@ -384,7 +385,7 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
         // Add specific override for ConvInteger output type
         else if (std.mem.eql(u8, nodeProto.op_type, "ConvInteger")) {
             if (nodeProto.output.len > 0 and std.mem.eql(u8, name, nodeProto.output[0])) {
-                std.debug.print("\nINFO: Overriding dtype for ConvInteger output '{s}' to INT32.", .{name});
+                globals_log.info("\nINFO: Overriding dtype for ConvInteger output '{s}' to INT32.", .{name});
                 tensor_dtype = .INT32; // ConvInteger output is always i32
             }
         }
@@ -392,7 +393,7 @@ pub fn addToTensorHashMap(name: []const u8, nodeProto: *NodeProto, graph: *Graph
         // --- END TYPE OVERRIDE FOR SPECIFIC OPS ---
 
         if (tensor_dtype == .UNDEFINED) {
-            std.debug.print("\nWARNING: Could not determine dtype for tensor '{s}' (Node: {s}). Defaulting to FLOAT.", .{ name, nodeProto.name orelse "unnamed" });
+            globals_log.warn("\nWARNING: Could not determine dtype for tensor '{s}' (Node: {s}). Defaulting to FLOAT.", .{ name, nodeProto.name orelse "unnamed" });
             // Assign a default type instead of leaving it undefined
             tensor_dtype = .FLOAT;
             // Optionally return an error here if type is mandatory

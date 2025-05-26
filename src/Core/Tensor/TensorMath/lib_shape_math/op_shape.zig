@@ -57,6 +57,8 @@ pub fn lean_shape_onnx(comptime InputT: type, comptime OutputT: type, input: *co
     end_axis = @max(start_axis, @min(end_axis, @as(i64, @intCast(rank))));
 
     // Calculate output size and validate output tensor shape
+    std.debug.print("Input shape: {any}\n", .{input.shape});
+    std.debug.print("Output shape: {any}\n", .{output.shape});
     const output_size = @max(0, end_axis - start_axis);
     if (output.shape.len != 1 or output.shape[0] != output_size) {
         return TensorError.ShapeMismatch;

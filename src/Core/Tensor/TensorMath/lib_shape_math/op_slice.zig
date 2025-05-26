@@ -115,12 +115,12 @@ pub fn lean_slice_onnx(comptime T: type, input: *Tensor(T), starts: []const i64,
 
 /// Calculate the output shape of a slice operation without performing the slice
 pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, ends: []const i64, axes: ?[]const i64, steps: ?[]const i64) ![]usize {
-    std.debug.print("\n[DEBUG] get_slice_output_shape input:", .{});
-    std.debug.print("\n  input_shape: {any}", .{input_shape});
-    std.debug.print("\n  starts: {any}", .{starts});
-    std.debug.print("\n  ends: {any}", .{ends});
-    std.debug.print("\n  axes: {any}", .{axes});
-    std.debug.print("\n  steps: {any}", .{steps});
+    std.log.debug("\n[DEBUG] get_slice_output_shape input:", .{});
+    std.log.debug("\n  input_shape: {any}", .{input_shape});
+    std.log.debug("\n  starts: {any}", .{starts});
+    std.log.debug("\n  ends: {any}", .{ends});
+    std.log.debug("\n  axes: {any}", .{axes});
+    std.log.debug("\n  steps: {any}", .{steps});
 
     // Validate input lengths
     if (starts.len != ends.len) return TensorError.InvalidSliceIndices;
@@ -146,10 +146,10 @@ pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, e
         actual_steps[i] = 1;
     }
 
-    std.debug.print("\n[DEBUG] Initial values:", .{});
-    std.debug.print("\n  actual_starts: {any}", .{actual_starts});
-    std.debug.print("\n  actual_ends: {any}", .{actual_ends});
-    std.debug.print("\n  actual_steps: {any}", .{actual_steps});
+    std.log.debug("\n[DEBUG] Initial values:", .{});
+    std.log.debug("\n  actual_starts: {any}", .{actual_starts});
+    std.log.debug("\n  actual_ends: {any}", .{actual_ends});
+    std.log.debug("\n  actual_steps: {any}", .{actual_steps});
 
     // Update with provided values
     for (starts, 0..) |start, i| {
@@ -182,17 +182,17 @@ pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, e
             actual_steps[axis_usize] = s[i];
         }
 
-        std.debug.print("\n[DEBUG] After processing axis {d}:", .{axis});
-        std.debug.print("\n  dim_size: {d}", .{dim_size});
-        std.debug.print("\n  actual_start: {d}", .{actual_start});
-        std.debug.print("\n  actual_end: {d}", .{actual_end});
-        std.debug.print("\n  actual_step: {d}", .{actual_steps[axis_usize]});
+        std.log.debug("\n[DEBUG] After processing axis {d}:", .{axis});
+        std.log.debug("\n  dim_size: {d}", .{dim_size});
+        std.log.debug("\n  actual_start: {d}", .{actual_start});
+        std.log.debug("\n  actual_end: {d}", .{actual_end});
+        std.log.debug("\n  actual_step: {d}", .{actual_steps[axis_usize]});
     }
 
-    std.debug.print("\n[DEBUG] Final values before shape calculation:", .{});
-    std.debug.print("\n  actual_starts: {any}", .{actual_starts});
-    std.debug.print("\n  actual_ends: {any}", .{actual_ends});
-    std.debug.print("\n  actual_steps: {any}", .{actual_steps});
+    std.log.debug("\n[DEBUG] Final values before shape calculation:", .{});
+    std.log.debug("\n  actual_starts: {any}", .{actual_starts});
+    std.log.debug("\n  actual_ends: {any}", .{actual_ends});
+    std.log.debug("\n  actual_steps: {any}", .{actual_steps});
 
     // Calculate output shape
     var output_shape = try pkg_allocator.alloc(usize, input_shape.len);
@@ -207,24 +207,24 @@ pub fn get_slice_output_shape(input_shape: []const usize, starts: []const i64, e
         if (step > 0) {
             if (end > start) {
                 dim_size = @intCast(@divTrunc((@as(i64, @intCast(end - start)) + step - 1), step));
-                std.debug.print("\n[DEBUG] Positive step calculation for dim {d}:", .{i});
-                std.debug.print("\n  end ({d}) - start ({d}) = {d}", .{ end, start, end - start });
-                std.debug.print("\n  (end-start) + step({d}) - 1 = {d}", .{ step, (end - start) + step - 1 });
-                std.debug.print("\n  final dim_size = {d}", .{dim_size});
+                std.log.debug("\n[DEBUG] Positive step calculation for dim {d}:", .{i});
+                std.log.debug("\n  end ({d}) - start ({d}) = {d}", .{ end, start, end - start });
+                std.log.debug("\n  (end-start) + step({d}) - 1 = {d}", .{ step, (end - start) + step - 1 });
+                std.log.debug("\n  final dim_size = {d}", .{dim_size});
             }
         } else {
             if (start > end) {
                 // For negative steps, treat end as inclusive.
                 const range = start - end;
                 dim_size = @intCast((@divTrunc(range, -step)) + 1);
-                std.debug.print("\n[DEBUG] Negative step calculation for dim {d}:", .{i});
-                std.debug.print("\n  start ({d}) - end ({d}) = range ({d})", .{ start, end, range });
-                std.debug.print("\n  (range) / abs(step) + 1 = {d}", .{dim_size});
+                std.log.debug("\n[DEBUG] Negative step calculation for dim {d}:", .{i});
+                std.log.debug("\n  start ({d}) - end ({d}) = range ({d})", .{ start, end, range });
+                std.log.debug("\n  (range) / abs(step) + 1 = {d}", .{dim_size});
             }
         }
         output_shape[i] = dim_size;
     }
 
-    std.debug.print("\n[DEBUG] Final output_shape: {any}\n", .{output_shape});
+    std.log.debug("\n[DEBUG] Final output_shape: {any}\n", .{output_shape});
     return output_shape;
 }

@@ -6,7 +6,10 @@ const pkg_allocator = zant.utils.allocator.allocator;
 const error_handler = zant.utils.error_handler;
 const TensorError = error_handler.TensorError;
 const TensorMathError = error_handler.TensorMathError;
-
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
 // --------- standard MUL
 pub fn mul(comptime T: anytype, lhs: *Tensor(T), rhs: *Tensor(T)) !Tensor(T) {
     // Handle broadcasting
@@ -185,13 +188,58 @@ pub fn get_mul_output_shape(lhs: []const usize, rhs: []const usize) ![]usize {
         const dim2 = if (rank2 + i >= max_rank) rhs[rank2 + i - max_rank] else 1;
 
         if (dim1 != dim2 and dim1 != 1 and dim2 != 1) {
-            std.debug.print("Incompatible broadcast shapes: dim1={}, dim2={}, index={}\n", .{ dim1, dim2, i });
-            std.debug.print("lhs shape: {any}\n", .{lhs});
-            std.debug.print("rhs shape: {any}\n", .{rhs});
+            std.log.warn("Incompatible broadcast shapes: dim1={}, dim2={}, index={}\n", .{ dim1, dim2, i });
+            std.log.warn("lhs shape: {any}\n", .{lhs});
+            std.log.warn("rhs shape: {any}\n", .{rhs});
             return TensorMathError.IncompatibleBroadcastShapes;
         }
         out_shape[i] = @max(dim1, dim2);
     }
 
     return out_shape; // Return the newly allocated shape
+}
+
+/// https://onnx.ai/onnx/operators/onnx__Mul.html
+pub fn lowerMul(
+    b: *UOpBuilder,
+    A_id: usize, // input-tensor SSA ids
+    B_id: usize,
+    out_shape: []const usize, // broadcasted shape
+    strideA: []const isize, // per-dim strides (0 ⇒ broadcast)
+    strideB: []const isize,
+    out_dtype: DType, // promoted element type
+) usize { // returns id of result buffer
+
+    // ── Set-up phase ────────────────────────────────────────────────────
+    _ = b.push(.SHAPE, .i32, &.{A_id}, null); // a_shape  (dbg only)
+    _ = b.push(.SHAPE, .i32, &.{B_id}, null); // b_shape  (dbg only)
+
+    const id_viewA = b.push(.VIEW, out_dtype, &.{A_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideA } });
+
+    const id_viewB = b.push(.VIEW, out_dtype, &.{B_id}, Any{ .view_meta = .{ .shape = out_shape, .strides = strideB } });
+
+    const id_outBuf = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── Flat element loop ───────────────────────────────────────────────
+    var nelem: usize = 1;
+    for (out_shape) |d| nelem *= d;
+
+    const id_range = b.push(.RANGE, .u16, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = nelem } });
+
+    const id_gepA = b.push(.GEP, out_dtype, &.{ id_viewA, id_range }, Any{ .mem_info = .{ .base = id_viewA, .offset = 0, .stride = 1 } });
+
+    const id_gepB = b.push(.GEP, out_dtype, &.{ id_viewB, id_range }, Any{ .mem_info = .{ .base = id_viewB, .offset = 0, .stride = 1 } });
+
+    const id_loadA = b.push(.LOAD, out_dtype, &.{id_gepA}, null);
+    const id_loadB = b.push(.LOAD, out_dtype, &.{id_gepB}, null);
+
+    const id_mul = b.push(.MUL, out_dtype, &.{ id_loadA, id_loadB }, null);
+
+    const id_gepO = b.push(.GEP, out_dtype, &.{ id_outBuf, id_range }, Any{ .mem_info = .{ .base = id_outBuf, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ id_gepO, id_mul }, null);
+
+    _ = b.push(.ENDRANGE, .bool, &.{id_range}, null);
+
+    return id_outBuf; // SSA id of the output tensor
 }

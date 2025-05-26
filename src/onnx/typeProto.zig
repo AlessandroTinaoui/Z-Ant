@@ -6,6 +6,8 @@ const TensorShapeProto = @import("onnx.zig").TensorShapeProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.typeProto);
+
 //https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L719
 //TAG oneof:
 //  - 1: tensor_type, type: TypeProto.Tensor
@@ -51,7 +53,7 @@ pub const TypeProto = struct {
                         tensor.shape = shape_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
                         try reader.skipField(tag.wire_type);
                     },
                 }
@@ -107,7 +109,7 @@ pub const TypeProto = struct {
                         // sequence.elem_type = elem_type_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for ", .{tag});
                         unreachable;
                     },
                 }
@@ -166,7 +168,7 @@ pub const TypeProto = struct {
                         // map.value_type = value_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
                         unreachable;
                     },
                 }
@@ -229,7 +231,7 @@ pub const TypeProto = struct {
                         sparse_tensor.shape = shape_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
                         unreachable;
                     },
                 }
@@ -284,7 +286,7 @@ pub const TypeProto = struct {
                         //opt.elem_type = elm_ptr;
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE ", .{tag});
                         unreachable;
                     },
                 }
@@ -388,7 +390,7 @@ pub const TypeProto = struct {
                     typeProto.optional_type = opt_ptr;
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TypeProto", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TypeProto", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }

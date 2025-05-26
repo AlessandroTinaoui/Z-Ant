@@ -6,6 +6,8 @@ const allocator = pkgAllocator.allocator;
 const TensMath = zant.core.tensor.math_standard;
 const std = @import("std");
 
+const benchmark_log = std.log.scoped(.benchmark);
+
 const macs_mat_mul = @import("macs_matmul.zig").lean_mat_mul;
 const simple_mat_mul = @import("simple_matmul.zig").lean_mat_mul;
 const blocked_matmul = @import("blocked_matmul.zig").lean_mat_mul;
@@ -40,20 +42,20 @@ const test_data_types = [_]type{
 const test_data_n = [_]usize{5};
 
 fn print_mat(comptime T: anytype, mat: *const Tensor(T)) void {
-    std.debug.print("Matrix shape: ", .{});
-    for (mat.shape) |dim| std.debug.print("{} ", .{dim});
-    std.debug.print("\n", .{});
+    benchmark_log.debug("Matrix shape: ", .{});
+    for (mat.shape) |dim| benchmark_log.debug("{} ", .{dim});
+    benchmark_log.debug("\n", .{});
 
     for (0..mat.shape[0]) |i| {
         for (0..mat.shape[1]) |j| {
-            std.debug.print("{d} ", .{mat.data[i * mat.shape[1] + j]});
+            benchmark_log.debug("{d} ", .{mat.data[i * mat.shape[1] + j]});
         }
-        std.debug.print("\n", .{});
+        benchmark_log.debug("\n", .{});
     }
 }
 
 inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), lean_mat_mul: mat_mul_fn) !Tensor(T) {
-    // std.debug.print("\nStarting matrix multiplication validation...\n", .{});
+    // benchmark_log.debug("\nStarting matrix multiplication validation...\n", .{});
 
     const dim_num = A.shape.len;
 
@@ -77,9 +79,9 @@ inline fn mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T),
     var Y = try Tensor(T).fromShape(&allocator, out_shape);
     errdefer Y.deinit();
 
-    // std.debug.print("Output tensor shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // benchmark_log.debug("Output tensor shape: ", .{});
+    // for (Y.shape) |dim| benchmark_log.debug("{} ", .{dim});
+    // benchmark_log.debug("\n", .{});
 
     @memset(Y.data, 0);
 
@@ -216,22 +218,22 @@ fn mat_mul_bench(comptime T: anytype, comptime N: u8, comptime tests_num: usize)
 fn run_mat_mul_benchmarks(comptime T: anytype, comptime N: u8, comptime tests_num: usize) !void {
     const results = try mat_mul_bench(T, N, tests_num);
 
-    std.debug.print("MatMul benchmark results for type {any} with base {d}:\n\n", .{ T, N });
+    benchmark_log.info("MatMul benchmark results for type {any} with base {d}:\n\n", .{ T, N });
 
     for (0..results.len) |i| {
         const result = results[i];
-        std.debug.print("Test #{d}\n", .{i});
-        std.debug.print("\tShapes\n", .{});
-        std.debug.print("\t\tA Shape: {any}\n \t\tB Shape: {any} \n", .{ result.a_shape, result.b_shape });
-        std.debug.print("\tTimes:\n", .{});
+        benchmark_log.debug("Test #{d}\n", .{i});
+        benchmark_log.debug("\tShapes\n", .{});
+        benchmark_log.debug("\t\tA Shape: {any}\n \t\tB Shape: {any} \n", .{ result.a_shape, result.b_shape });
+        benchmark_log.debug("\tTimes:\n", .{});
         for (0..result.names.len) |mat_mul_i| {
-            std.debug.print("\t\t{s} took {d} ms\n", .{ result.names[mat_mul_i], @as(f64, @floatFromInt(result.times[mat_mul_i])) / 1_000_000.0 });
+            benchmark_log.debug("\t\t{s} took {d} ms\n", .{ result.names[mat_mul_i], @as(f64, @floatFromInt(result.times[mat_mul_i])) / 1_000_000.0 });
         }
 
-        std.debug.print("\tSpeedups:\n", .{});
+        benchmark_log.debug("\tSpeedups:\n", .{});
         for (2..result.names.len) |mat_mul_i| {
             const current_speedup = @as(f64, @floatFromInt(result.times[1])) / @as(f64, @floatFromInt(result.times[mat_mul_i]));
-            std.debug.print("\t\t{s}: {d:.2}x\n", .{ result.names[mat_mul_i], current_speedup });
+            benchmark_log.debug("\t\t{s}: {d:.2}x\n", .{ result.names[mat_mul_i], current_speedup });
         }
     }
 }
@@ -243,7 +245,7 @@ pub fn run() !void {
             inline for (0..test_data_n.len) |j| {
                 const N = test_data_n[j];
                 try run_mat_mul_benchmarks(T, N, 5);
-                std.debug.print("\n\n", .{});
+                benchmark_log.debug("\n\n", .{});
             }
         }
     } else {

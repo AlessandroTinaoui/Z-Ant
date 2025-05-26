@@ -6,6 +6,8 @@ const StringStringEntryProto = @import("onnx.zig").StringStringEntryProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.valueInfo);
+
 //https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L193
 //TAGS:
 //  - 1 : name, string
@@ -65,7 +67,7 @@ pub const ValueInfoProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for ValueInfoProto", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for ValueInfoProto", .{tag});
                     return error.TagNotAvailable;
                 },
             }

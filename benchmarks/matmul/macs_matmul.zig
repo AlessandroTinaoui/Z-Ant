@@ -6,8 +6,6 @@ const TensMath = zant.core.tensor.math_standard;
 
 const CACHE_BLOCK_SIZE_BYTES: usize = std.atomic.cache_line;
 
-
-
 pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const Tensor(T), Y: *Tensor(T)) !void {
     const DEFAULT_VECTOR_WIDTH: usize = comptime (std.simd.suggestVectorLength(T) orelse 4);
     const dim_num = A.shape.len;
@@ -16,16 +14,16 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     const N = B.shape[dim_num - 1];
     const K = A.shape[dim_num - 1];
 
-    // std.debug.print("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
-    // std.debug.print("Input tensor A shape: ", .{});
-    // for (A.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\nInput tensor B shape: ", .{});
-    // for (B.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // std.log.debug("\nMatrix multiplication dimensions: M={}, N={}, K={}\n", .{ M, N, K });
+    // std.log.debug("Input tensor A shape: ", .{});
+    // for (A.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\nInput tensor B shape: ", .{});
+    // for (B.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\n", .{});
 
-    // std.debug.print("Output tensor Y shape: ", .{});
-    // for (Y.shape) |dim| std.debug.print("{} ", .{dim});
-    // std.debug.print("\n", .{});
+    // std.log.debug("Output tensor Y shape: ", .{});
+    // for (Y.shape) |dim| std.log.debug("{} ", .{dim});
+    // std.log.debug("\n", .{});
 
     // SIMD vector type
     const Vec = @Vector(DEFAULT_VECTOR_WIDTH, T);
@@ -39,7 +37,7 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
     // Main matrix multiplication loop with SIMD
     var i: usize = 0;
     while (i < M) : (i += 1) {
-        // if (i % 100 == 0) std.debug.print("Processing row {}/{}\n", .{ i, M });
+        // if (i % 100 == 0) std.log.debug("Processing row {}/{}\n", .{ i, M });
         const row_offset = i * K;
         const out_offset = i * N;
 
@@ -88,5 +86,5 @@ pub inline fn lean_mat_mul(comptime T: anytype, A: *const Tensor(T), B: *const T
         }
     }
 
-    // std.debug.print("Matrix multiplication completed\n", .{});
+    // std.log.debug("Matrix multiplication completed\n", .{});
 }

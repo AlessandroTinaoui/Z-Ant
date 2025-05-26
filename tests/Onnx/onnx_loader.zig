@@ -4,6 +4,8 @@ const onnx = zant.onnx;
 const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
+const tests_log = std.log.scoped(.test_utils);
+
 const ErrorDetail = struct {
     modelName: []const u8,
     errorLoad: anyerror,
@@ -13,7 +15,7 @@ var models: std.ArrayList([]const u8) = std.ArrayList([]const u8).init(allocator
 var failed_parsed_models: std.ArrayList(ErrorDetail) = std.ArrayList(ErrorDetail).init(allocator);
 
 test " Onnx loader" {
-    std.debug.print("\n     test:  Onnx loader\n", .{});
+    tests_log.info("\n     test:  Onnx loader\n", .{});
 
     var dir = try std.fs.cwd().openDir("datasets/models", .{ .iterate = true });
     defer dir.close();
@@ -46,10 +48,10 @@ test " Onnx loader" {
     }
 
     if (failed_parsed_models.items.len != 0) {
-        std.debug.print("\n\n FAILED ONNX PARSED MODELS: ", .{});
-        for (failed_parsed_models.items) |fm| std.debug.print("\n model:{s} error:{any}", .{ fm.modelName, fm.errorLoad });
+        tests_log.info("\n\n FAILED ONNX PARSED MODELS: ", .{});
+        for (failed_parsed_models.items) |fm| tests_log.info("\n model:{s} error:{any}", .{ fm.modelName, fm.errorLoad });
     } else {
-        std.debug.print("\n\n ---- SUCCESFULLY PARSED ALL ONNX MODELS ---- \n\n", .{});
+        tests_log.info("\n\n ---- SUCCESFULLY PARSED ALL ONNX MODELS ---- \n\n", .{});
     }
 
     models.deinit();

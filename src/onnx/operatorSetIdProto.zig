@@ -9,6 +9,8 @@ var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 // - 1 : domain, optional string
 // - 2 : version, optional int 64
 
+const onnx_log = std.log.scoped(.operatorSetIdProto);
+
 pub const OperatorSetIdProto = struct {
     domain: ?[]const u8,
     version: ?i64,
@@ -34,7 +36,7 @@ pub const OperatorSetIdProto = struct {
                     idProto.version = @as(i64, @intCast(value));
                 },
                 else => {
-                    std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    onnx_log.info("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }

@@ -6,6 +6,8 @@ const GraphProto = @import("graphProto.zig").GraphProto;
 const TypeProto = @import("typeProto.zig").TypeProto;
 const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 
+const onnx_log = std.log.scoped(.attributeProto);
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
@@ -156,7 +158,7 @@ pub const AttributeProto = struct {
         while (reader.hasMore()) {
             const attr_tag = try reader.readTag();
             //DEBUG
-            //std.debug.print("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
+            //onnx_log.debug("Parsing attribute field {d} with wire type {}\n", .{ attr_tag.field_number, attr_tag.wire_type });
             switch (attr_tag.field_number) {
                 1 => { // name
                     attr.name = try reader.readString(reader.allocator);
@@ -176,7 +178,7 @@ pub const AttributeProto = struct {
                 },
                 3 => { // single int (i)
                     const value = try reader.readVarint();
-                    attr.i = @intCast(value);
+                    attr.i = @bitCast(value);
                     attr.type = .INT;
                 },
                 4 => { // single string (s)
@@ -215,7 +217,7 @@ pub const AttributeProto = struct {
                     const v = try reader.readVarint();
                     try ints_list.append(@intCast(v));
                     //DEBUG
-                    //std.debug.print("Added int value {d} to {s}\n", .{ v, attr.name });
+                    //onnx_log.debug("Added int value {d} to {s}\n", .{ v, attr.name });
                     attr.type = .INTS;
                 },
                 9 => { // strings
@@ -270,7 +272,7 @@ pub const AttributeProto = struct {
                     if (attr.type != .INTS) attr.type = .SPARSE_TENSOR;
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{attr_tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for AttributeProto\n\n ", .{attr_tag});
 
                     try reader.skipField(attr_tag.wire_type);
                 },
@@ -318,8 +320,7 @@ pub const AttributeProto = struct {
 
         if (self.floats.len > 0) {
             std.debug.print("{s}Floats: [", .{space});
-            for (self.floats, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
+            for (self.floats) |val| {
                 std.debug.print("{}", .{val});
             }
             std.debug.print("]\n", .{});
@@ -327,8 +328,7 @@ pub const AttributeProto = struct {
 
         if (self.ints.len > 0) {
             std.debug.print("{s}Ints: [", .{space});
-            for (self.ints, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
+            for (self.ints) |val| {
                 std.debug.print("{}", .{val});
             }
             std.debug.print("]\n", .{});
@@ -336,8 +336,7 @@ pub const AttributeProto = struct {
 
         if (self.strings.len > 0) {
             std.debug.print("{s}Strings: [", .{space});
-            for (self.strings, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
+            for (self.strings) |val| {
                 std.debug.print("\"{s}\"", .{val});
             }
             std.debug.print("]\n", .{});
@@ -345,8 +344,7 @@ pub const AttributeProto = struct {
 
         if (self.tensors.len > 0) {
             std.debug.print("{s}Tensors: [", .{space});
-            for (self.tensors, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
+            for (self.tensors) |val| {
                 std.debug.print("TensorProto", .{});
                 val.print(space);
             }
@@ -374,8 +372,7 @@ pub const AttributeProto = struct {
 
         if (self.type_protos.len > 0) {
             std.debug.print("{s}Type Protos: [", .{space});
-            for (self.type_protos, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
+            for (self.type_protos) |val| {
                 std.debug.print("TypeProto", .{});
                 val.print(space);
             }

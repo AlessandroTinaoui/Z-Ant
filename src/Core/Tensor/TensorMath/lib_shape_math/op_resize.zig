@@ -46,11 +46,11 @@ pub fn resize(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales
 
 //resize lean
 pub fn rezise_lean(comptime T: type, t: *Tensor(T), comptime mode: []const u8, scales: ?[]const f32, sizes: ?[]const usize, coordinate_transformation_mode: []const u8, output_tensor: *Tensor(T)) !void {
-    std.debug.print("rezise_lean\n", .{});
-    std.debug.print("mode: {s}\n", .{mode});
-    std.debug.print("scales: {any}\n", .{scales});
-    std.debug.print("sizes: {any}\n", .{sizes});
-    std.debug.print("coordinate_transformation_mode: {s}\n", .{coordinate_transformation_mode});
+    std.log.debug("rezise_lean\n", .{});
+    std.log.debug("mode: {s}\n", .{mode});
+    std.log.debug("scales: {any}\n", .{scales});
+    std.log.debug("sizes: {any}\n", .{sizes});
+    std.log.debug("coordinate_transformation_mode: {s}\n", .{coordinate_transformation_mode});
 
     // Perform interpolation based on mode
     if (std.mem.eql(u8, mode, "nearest")) {

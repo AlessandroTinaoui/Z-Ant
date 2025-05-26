@@ -6,12 +6,16 @@ const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
+const tests_log = std.log.scoped(.test_utils);
+
 const model = @import("model_options.zig");
 
 const ITERATION_COUNT: u32 = 100;
 
 test "Static Library - Random data Prediction Test" {
-    std.debug.print("\n     test: Static Library - Model: {s}  - Random data Prediction Test\n", .{model.name});
+    std.testing.log_level = .info;
+
+    tests_log.info("\n     test: Static Library - Model: {s}  - Random data Prediction Test\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -46,11 +50,13 @@ test "Static Library - Random data Prediction Test" {
             &result,
         );
     }
-    std.debug.print("\nRan 100 fuzzy tests on model \"{s}\", done without errors:\n", .{model.name});
+    tests_log.info("\nRan 100 fuzzy tests on model \"{s}\", done without errors:\n", .{model.name});
 }
 
 test "Static Library - Inputs Prediction Test" {
-    std.debug.print("\n     test: Codegen one-op model: \"{s}\" compare with Pre-Generated results.\n", .{model.name});
+    std.testing.log_level = .info;
+
+    tests_log.info("\n     test: Codegen one-op model: \"{s}\" compare with Pre-Generated results.\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -63,17 +69,17 @@ test "Static Library - Inputs Prediction Test" {
     const user_tests_path = try std.fmt.allocPrint(allocator, "generated/oneOpModels/{s}/user_tests.json", .{model.name});
     defer allocator.free(user_tests_path);
 
-    std.debug.print("{s}", .{user_tests_path});
+    tests_log.info("{s}", .{user_tests_path});
 
     const parsed_user_tests = try utils.loadUserTests(model.data_type, user_tests_path);
     defer parsed_user_tests.deinit();
 
     const user_tests = parsed_user_tests.value;
 
-    std.debug.print("\nUser tests loaded.\n", .{});
+    tests_log.info("\nUser tests loaded.\n", .{});
 
     for (user_tests) |user_test| {
-        std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
+        tests_log.info("\n\tRunning user test: {s}\n\n", .{user_test.name});
 
         try std.testing.expectEqual(user_test.input.len, input_data_len);
 
@@ -91,9 +97,9 @@ test "Static Library - Inputs Prediction Test" {
             const result_value = result[i];
             const expected_output_value = expected_output;
             const approx_eq = std.math.approxEqAbs(model.data_type, expected_output_value, result_value, 0.001);
-            if(!approx_eq)
-                std.debug.print("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output_value, result_value });
-            
+            if (!approx_eq)
+                tests_log.warn("Test failed for input: {d} expected: {} got: {}\n", .{ i, expected_output_value, result_value });
+
             try std.testing.expect(approx_eq);
         }
     }

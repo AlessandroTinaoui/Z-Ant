@@ -9,6 +9,8 @@ const FunctionProto = @import("onnx.zig").FunctionProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.modelProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L361
 // TAGS:
 //  - 1 : ir_version, optional int64

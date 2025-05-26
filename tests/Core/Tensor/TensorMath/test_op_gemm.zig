@@ -9,10 +9,12 @@ const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
 const ErrorHandler = error_handler;
 
+const tests_log = std.log.scoped(.test_gemm);
+
 // TODO: add test for multiple batch/channel
 
 test "Gemm Y = a A*B" {
-    std.debug.print("\n     test: Gemm Y = a A*B", .{});
+    tests_log.info("\n     test: Gemm Y = a A*B", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -37,7 +39,7 @@ test "Gemm Y = a A*B" {
 }
 
 test "Gemm Y = a A*B + bC without broadcasting" {
-    std.debug.print("\n     test: Gemm Y = a A*B + bC without broadcasting", .{});
+    tests_log.info("\n     test: Gemm Y = a A*B + bC without broadcasting", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -69,7 +71,7 @@ test "Gemm Y = a A*B + bC without broadcasting" {
 }
 
 test "Gemm Y = a A*B + bC with broadcasting" {
-    std.debug.print("\n     test: Gemm Y = a A*B + bC with broadcasting", .{});
+    tests_log.info("\n     test: Gemm Y = a A*B + bC with broadcasting", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -107,7 +109,7 @@ test "Gemm Y = a A*B + bC with broadcasting" {
 }
 
 test "Gemm Y = a A*B + bC with broadcasting, custom parameters v1" {
-    std.debug.print("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters v1", .{});
+    tests_log.info("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters v1", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -144,7 +146,7 @@ test "Gemm Y = a A*B + bC with broadcasting, custom parameters v1" {
 }
 
 test "Gemm Y = a A*B + bC with broadcasting, custom parameters v2" {
-    std.debug.print("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters v2", .{});
+    tests_log.info("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters v2", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -194,7 +196,7 @@ test "Gemm Y = a A*B + bC with broadcasting, custom parameters v2" {
 
 // NOTE: as 22/02 this test is not passed as mat_mul, used by gemm, doesn't support multiplication of matrix distribuited in multiple batches/channels but only tensor with a shape like {1, 1, N, M}, once mat_mul is updated this test should pass
 // test "Gemm Y = a A*B + bC with broadcasting, custom parameters, multiple batch/channels" {
-//     std.debug.print("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters, multiple batch/channels", .{});
+//     tests_log.info("\n     test: Gemm Y = a A*B + bC with broadcasting, custom parameters, multiple batch/channels", .{});
 
 //     const allocator = pkgAllocator.allocator;
 
@@ -264,7 +266,7 @@ test "Gemm Y = a A*B + bC with broadcasting, custom parameters v2" {
 
 //     debug
 //     for (0..result_tensor.data.len) |i|
-//         std.debug.print("\nres[{d}] {d}", .{ i, result_tensor.data[i] });
+//         tests_log.info("\nres[{d}] {d}", .{ i, result_tensor.data[i] });
 
 //     try std.testing.expect(2549.0 == result_tensor.data[12]);
 //     try std.testing.expect(2927.0 == result_tensor.data[13]);
@@ -278,7 +280,7 @@ test "Gemm Y = a A*B + bC with broadcasting, custom parameters v2" {
 // }
 
 test "Error when input tensors aren't 4D" {
-    std.debug.print("\n     test: Error when input tensors aren't 4D", .{});
+    tests_log.info("\n     test: Error when input tensors aren't 4D", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -290,14 +292,14 @@ test "Error when input tensors aren't 4D" {
     try std.testing.expectError(TensorMathError.InputTensorsWrongShape, TensMath.gemm(f32, &t1, &t2, null, 1, 1, false, false));
 
     _ = TensMath.gemm(f32, &t1, &t2, null, 1, 1, false, false) catch |err| {
-        std.debug.print("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
+        tests_log.warn("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
     };
     t1.deinit();
     t2.deinit();
 }
 
 test "Error when there's a mismatch in batch or channel dimension" {
-    std.debug.print("\n     test: Error when there's a mismatch in batch or channel dimension", .{});
+    tests_log.info("\n     test: Error when there's a mismatch in batch or channel dimension", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -309,14 +311,14 @@ test "Error when there's a mismatch in batch or channel dimension" {
     try std.testing.expectError(TensorMathError.InputTensorDifferentShape, TensMath.gemm(f32, &t1, &t2, null, 1, 1, false, false));
 
     _ = TensMath.gemm(f32, &t1, &t2, null, 1, 1, false, false) catch |err| {
-        std.debug.print("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
+        tests_log.warn("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
     };
     t1.deinit();
     t2.deinit();
 }
 
 test "Error when input tensors have incompatible sizes for gemm" {
-    std.debug.print("\n     test: Error when input tensors have incompatible sizes for gemm", .{});
+    tests_log.info("\n     test: Error when input tensors have incompatible sizes for gemm", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -328,7 +330,7 @@ test "Error when input tensors have incompatible sizes for gemm" {
     try std.testing.expectError(TensorMathError.InputTensorDimensionMismatch, TensMath.gemm(f32, &t1, &t2, null, 1, 1, false, false));
 
     _ = TensMath.gemm(f32, &t1, &t2, null, 1, 1, false, false) catch |err| {
-        std.debug.print("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
+        tests_log.warn("\n _______ {s} ______", .{ErrorHandler.errorDetails(err)});
     };
     t1.deinit();
     t2.deinit();

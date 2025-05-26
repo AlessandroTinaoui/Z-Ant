@@ -9,6 +9,8 @@ const Segment = @import("segment.zig").Segment;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L503
 //TAGS:
 //  - 1 : dims, repeated int64
@@ -119,6 +121,7 @@ pub const TensorProto = struct {
 
         var dims = std.ArrayList(i64).init(reader.allocator);
         defer dims.deinit();
+        var dataLen: i64 = 1; //sometimes dims: []i64 is not reported so you have to assume it from the data lenght
         var externalDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
         defer externalDataList.deinit();
         var metaDataList = std.ArrayList(*StringStringEntryProto).init(reader.allocator);
@@ -161,6 +164,7 @@ pub const TensorProto = struct {
                         const value = try reader.readFixed32();
                         try data.append(@bitCast(value));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.float_data = try data.toOwnedSlice();
                 },
                 5 => { // int32_data
@@ -180,6 +184,7 @@ pub const TensorProto = struct {
                         const value32_truncated = @as(u32, @truncate(value64));
                         try data.append(@bitCast(value32_truncated));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.int32_data = try data.toOwnedSlice();
                 },
                 7 => { // int64_data
@@ -195,6 +200,7 @@ pub const TensorProto = struct {
                         const value = try reader.readVarint();
                         try data.append(@bitCast(value));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.int64_data = try data.toOwnedSlice();
                 },
                 10 => { // double_data
@@ -211,6 +217,7 @@ pub const TensorProto = struct {
                         const value = try reader.readFixed64();
                         try data.append(@bitCast(value));
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.double_data = try data.toOwnedSlice();
                 },
                 11 => { // uint64_data
@@ -226,6 +233,7 @@ pub const TensorProto = struct {
                         const value = try reader.readVarint();
                         try data.append(value);
                     }
+                    dataLen = @intCast(data.items.len);
                     tensor.uint64_data = try data.toOwnedSlice();
                 },
                 12 => {
@@ -248,7 +256,7 @@ pub const TensorProto = struct {
                     try metaDataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorProto\n\n", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -257,13 +265,14 @@ pub const TensorProto = struct {
         //from Raw data to Data Type
         if (tensor.raw_data) |_| try tensor.fromRawDataToDataType(reader.allocator);
 
+        //check on the dims
+        if (dims.items.len == 0) try dims.append(dataLen);
         tensor.dims = try dims.toOwnedSlice();
         tensor.external_data = try externalDataList.toOwnedSlice();
         tensor.metadata_props = try metaDataList.toOwnedSlice();
 
         return tensor;
     }
-
     pub fn print(self: *TensorProto, padding: ?[]const u8) void {
         const space = std.mem.concat(printingAllocator.allocator(), u8, &[_][]const u8{ if (padding) |p| p else "", "   " }) catch {
             return;
@@ -285,8 +294,9 @@ pub const TensorProto = struct {
         std.debug.print("{s}Data Type: {any}\n", .{ space, self.data_type });
 
         std.debug.print("{s}Dims: [", .{space});
-        for (self.dims, 0..) |dim, i| {
-            if (i > 0) std.debug.print(", ", .{});
+        for (
+            self.dims,
+        ) |dim| {
             std.debug.print("{}", .{dim});
         }
         std.debug.print("]\n", .{});
@@ -298,7 +308,6 @@ pub const TensorProto = struct {
         if (self.float_data) |data| {
             std.debug.print("{s}Float Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{data[i]});
             }
             if (data.len >= 10) std.debug.print(", ... ", .{});
@@ -308,7 +317,6 @@ pub const TensorProto = struct {
         if (self.int32_data) |data| {
             std.debug.print("{s}Int32 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{data[i]});
             }
             if (data.len >= 10) std.debug.print(", ... ", .{});
@@ -318,7 +326,6 @@ pub const TensorProto = struct {
         if (self.int64_data) |data| {
             std.debug.print("{s}Int64 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{data[i]});
             }
             if (data.len >= 10) std.debug.print(", ... ", .{});
@@ -328,7 +335,6 @@ pub const TensorProto = struct {
         if (self.double_data) |data| {
             std.debug.print("{s}Double Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{data[i]});
             }
             if (data.len >= 10) std.debug.print(", ... ", .{});
@@ -338,7 +344,6 @@ pub const TensorProto = struct {
         if (self.uint64_data) |data| {
             std.debug.print("{s}UInt64 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{data[i]});
             }
             if (data.len >= 10) std.debug.print(", ... ", .{});
@@ -348,7 +353,6 @@ pub const TensorProto = struct {
         if (self.uint16_data) |data| {
             std.debug.print("{s}UInt16 Data: [", .{space});
             for (0..if (data.len < 10) data.len else 10) |i| {
-                if (i > 0) std.debug.print(", ", .{});
                 std.debug.print("{}", .{data[i]});
             }
             if (data.len >= 10) std.debug.print(", ... ", .{});
@@ -357,8 +361,7 @@ pub const TensorProto = struct {
 
         if (self.string_data) |data| {
             std.debug.print("  String Data: [", .{});
-            for (data, 0..) |val, i| {
-                if (i > 0) std.debug.print(", ", .{});
+            for (data) |val| {
                 std.debug.print("\"{s}\"", .{val});
             }
             std.debug.print("]\n", .{});
@@ -441,7 +444,7 @@ pub const TensorProto = struct {
                 self.uint16_data = typed_data;
             },
             else => {
-                std.debug.print("\n Data type conversion not supported for {s}, keeping raw data \n", .{@tagName(data_type)});
+                onnx_log.warn("\n Data type conversion not supported for {s}, keeping raw data \n", .{@tagName(data_type)});
                 // If conversion is not supported, we keep the raw_data.
                 // We need to prevent the deferred free.
                 free_raw_data = false;

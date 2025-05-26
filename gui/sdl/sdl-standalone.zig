@@ -240,7 +240,7 @@ fn runCodeGen() !void {
 
     const exit_status = try child.wait();
 
-    std.debug.print("\nExit Status: {}\n", .{exit_status});
+    std.log.info("\nExit Status: {}\n", .{exit_status});
     if (exit_status.Exited != 0) {
         page = .select_model;
     }
@@ -392,7 +392,7 @@ pub fn runLibGen() !void {
 
     const exit_status = try child.wait();
 
-    std.debug.print("\nExit Status: {}\n", .{exit_status});
+    std.log.info("\nExit Status: {}\n", .{exit_status});
     if (exit_status.Exited != 0) {
         page = .deploy_options;
     }

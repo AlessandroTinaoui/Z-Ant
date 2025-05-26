@@ -1,6 +1,11 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const rand = std.Random;
+const zant = @import("zant");
+
+const TensorProto = zant.onnx.TensorProto;
+const AnyTensor = zant.core.tensor.AnyTensor;
+const Tensor = zant.core.tensor.Tensor;
 
 pub const InitMethod = enum {
     Dumb, // Generazione casuale semplice

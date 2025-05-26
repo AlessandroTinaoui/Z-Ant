@@ -5,6 +5,8 @@ const AttributeType = @import("onnx.zig").AttributeType;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.tensorProto);
+
 //https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L700
 //The struct Dimension is not present, instead the dimensions are saved inside .dims
 //TAGS:
@@ -45,7 +47,7 @@ pub const TensorShapeProto = struct {
                         dim.dim_param = try reader.readString(reader.allocator);
                     },
                     else => {
-                        std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for Dimension\n\n ", .{tag});
+                        onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for Dimension\n\n ", .{tag});
                         try reader.skipField(tag.wire_type);
                     },
                 }
@@ -113,7 +115,7 @@ pub const TensorShapeProto = struct {
                     try dims_list.append(dim_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n ", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for TensorShapeProto\n\n ", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -139,8 +141,7 @@ pub const TensorShapeProto = struct {
         std.debug.print("{s}------------- SHAPE\n", .{space});
 
         std.debug.print("{s}Shape: [", .{space});
-        for (self.shape, 0..) |dim, i| {
-            if (i > 0) std.debug.print(", ", .{});
+        for (self.shape) |dim| {
             std.debug.print("{}", .{dim});
         }
         std.debug.print("]\n", .{});

@@ -56,21 +56,21 @@ pub fn isSafe(comptime T: anytype, t: *Tensor(T)) !void {
 pub fn equal(comptime T: anytype, t1: *Tensor(T), t2: *Tensor(T)) bool {
     //same size
     if (t1.size != t2.size) {
-        std.debug.print("\n\n ERROR:WRONG SIZE t1.size:{} t2.size:{}", .{ t1.size, t2.size });
+        std.log.warn("\n\n ERROR:WRONG SIZE t1.size:{} t2.size:{}", .{ t1.size, t2.size });
         return false;
     }
 
     //same shape
     for (0..t1.shape.len) |i| {
         if (t1.shape[i] != t2.shape[i]) {
-            std.debug.print("\n\n ERROR: WRONG SHAPE t1.shape[{}]:{} t2.shape[{}]:{}", .{ i, t1.shape[i], i, t2.shape[i] });
+            std.log.warn("\n\n ERROR: WRONG SHAPE t1.shape[{}]:{} t2.shape[{}]:{}", .{ i, t1.shape[i], i, t2.shape[i] });
             return false;
         }
     }
 
     //same data
     if (!std.mem.eql(T, t1.data, t2.data)) {
-        std.debug.print("\n\n ERROR: WRONG DATA", .{});
+        std.log.warn("\n\n ERROR: WRONG DATA", .{});
         return false;
     }
 

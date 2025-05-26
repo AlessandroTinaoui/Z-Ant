@@ -6,8 +6,10 @@ const TensMath = zant.core.tensor.math_standard;
 const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 
+const tests_log = std.log.scoped(.test_lib_logical_math);
+
 test "equal() " {
-    std.debug.print("\n     test:equal()", .{});
+    tests_log.info("\n     test:equal()", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][2]f32 = [_][2]f32{
@@ -48,7 +50,7 @@ test "equal() " {
 }
 
 test "tests isSafe() method" {
-    std.debug.print("\n     test: isSafe() method ", .{});
+    tests_log.info("\n     test: isSafe() method ", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -66,7 +68,7 @@ test "tests isSafe() method" {
 }
 
 test "tests isSafe() -> TensorError.NotFiniteValue " {
-    std.debug.print("\n     test: isSafe()-> TensorError.NotFiniteValue", .{});
+    tests_log.info("\n     test: isSafe()-> TensorError.NotFiniteValue", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -87,7 +89,7 @@ test "tests isSafe() -> TensorError.NotFiniteValue " {
 }
 
 test "tests isSafe() -> TensorError.NanValue " {
-    std.debug.print("\n     test: isSafe()-> TensorError.NanValue", .{});
+    tests_log.info("\n     test: isSafe()-> TensorError.NanValue", .{});
 
     const allocator = pkgAllocator.allocator;
 

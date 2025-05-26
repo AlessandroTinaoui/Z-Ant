@@ -27,20 +27,20 @@ pub inline fn sigmoid(comptime T: anytype, tensor: *Tensor(T)) !Tensor(T) {
 
 pub inline fn sigmoid_lean(comptime T: anytype, input_tensor: *Tensor(T), output_tensor: *Tensor(T)) !void {
     @setEvalBranchQuota(100000);
-    //std.debug.print("\n[DEBUG] sigmoid_lean:", .{});
-    //std.debug.print("\n  Input shape: ", .{});
-    //for (input_tensor.shape) |s| std.debug.print("{d} ", .{s});
+    //std.log.debug("\n[DEBUG] sigmoid_lean:", .{});
+    //std.log.debug("\n  Input shape: ", .{});
+    //for (input_tensor.shape) |s| std.log.debug("{d} ", .{s});
 
-    //std.debug.print("\n  Output shape: ", .{});
-    //for (output_tensor.shape) |s| std.debug.print("{d} ", .{s});
+    //std.log.debug("\n  Output shape: ", .{});
+    //for (output_tensor.shape) |s| std.log.debug("{d} ", .{s});
 
     //apply Sigmoid
     for (0..input_tensor.size) |i| {
         const input_val = input_tensor.data[i];
         output_tensor.data[i] = 1.0 / (1.0 + @exp(-input_val));
-        //std.debug.print("\n  sigmoid({d:.6}) = {d:.6}", .{ input_val, output_tensor.data[i] });
+        //std.log.debug("\n  sigmoid({d:.6}) = {d:.6}", .{ input_val, output_tensor.data[i] });
     }
-    //std.debug.print("\n[DEBUG] sigmoid_lean completed\n", .{});
+    //std.log.debug("\n[DEBUG] sigmoid_lean completed\n", .{});
 }
 
 pub fn sigmoid_backward(comptime T: anytype, gradient: *Tensor(T), act_forward_out: *Tensor(T)) !void {

@@ -5,6 +5,11 @@ const Tensor = zant.core.tensor.Tensor; // Import Tensor type
 const pkg_allocator = zant.utils.allocator.allocator;
 const TensorMathError = zant.utils.error_handler.TensorMathError;
 
+const Uops = zant.uops;
+const UOpBuilder = Uops.UOpBuilder;
+const DType = Uops.DType;
+const Any = Uops.Any;
+
 pub const PoolingType = enum {
     Max,
     Min,
@@ -19,26 +24,26 @@ pub const AutoPadType = enum {
 };
 
 pub fn get_pooling_output_shape(input_shape: []const usize, kernel: [2]usize, stride: [2]usize) ![4]usize {
-    // std.debug.print("\n[DEBUG] get_pooling_output_shape - Input shape: {any}", .{input_shape});
-    // std.debug.print("\n[DEBUG] get_pooling_output_shape - Kernel: {any}", .{kernel});
-    // std.debug.print("\n[DEBUG] get_pooling_output_shape - Stride: {any}", .{stride});
+    // std.log.debug("\n[DEBUG] get_pooling_output_shape - Input shape: {any}", .{input_shape});
+    // std.log.debug("\n[DEBUG] get_pooling_output_shape - Kernel: {any}", .{kernel});
+    // std.log.debug("\n[DEBUG] get_pooling_output_shape - Stride: {any}", .{stride});
 
     if (input_shape.len != 4) {
-        std.debug.print("\n[DEBUG] ERROR: Invalid dimensions - input shape length is not 4", .{});
+        std.log.warn("\n[DEBUG] ERROR: Invalid dimensions - input shape length is not 4", .{});
         return TensorMathError.InvalidDimensions;
     }
 
     if (kernel[0] == 0 or kernel[1] == 0 or stride[0] == 0 or stride[1] == 0) {
-        std.debug.print("\n[DEBUG] ERROR: Wrong stride - kernel or stride contains zeros", .{});
+        std.log.warn("\n[DEBUG] ERROR: Wrong stride - kernel or stride contains zeros", .{});
         return TensorMathError.WrongStride;
     }
 
     if (kernel[0] > input_shape[2] or kernel[1] > input_shape[3]) {
-        std.debug.print("\n[DEBUG] WARNING: Kernel size ({},{}) > input dimensions ({},{})", .{ kernel[0], kernel[1], input_shape[2], input_shape[3] });
+        std.log.warn("\n[DEBUG] WARNING: Kernel size ({},{}) > input dimensions ({},{})", .{ kernel[0], kernel[1], input_shape[2], input_shape[3] });
 
         // SPECIAL CASE: Instead of error, return a shape with 1x1 spatial dimensions
         // when kernel is larger than input
-        std.debug.print("\n[DEBUG] Using special case: returning output with 1x1 spatial dimensions", .{});
+        std.log.debug("\n[DEBUG] Using special case: returning output with 1x1 spatial dimensions", .{});
         const batch_size = input_shape[0];
         const channels = input_shape[1];
 
@@ -50,7 +55,7 @@ pub fn get_pooling_output_shape(input_shape: []const usize, kernel: [2]usize, st
     const out_height = (input_shape[2] - kernel[0]) / stride[0] + 1;
     const out_width = (input_shape[3] - kernel[1]) / stride[1] + 1;
 
-    // std.debug.print("\n[DEBUG] Calculated output dimensions - height: {}, width: {}", .{ out_height, out_width });
+    // std.log.debug("\n[DEBUG] Calculated output dimensions - height: {}, width: {}", .{ out_height, out_width });
     return [4]usize{ batch_size, channels, out_height, out_width };
 }
 
@@ -503,16 +508,16 @@ pub fn get_onnx_maxpool_output_shape(
     auto_pad: AutoPadType,
     ceil_mode: bool,
 ) ![]usize {
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - Input shape: {any}", .{input_shape});
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - Kernel shape: {any}", .{kernel_shape});
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - Strides: {any}", .{strides});
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - Dilations: {any}", .{dilations});
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - Pads: {any}", .{pads});
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - AutoPad: {}", .{auto_pad});
-    // std.debug.print("\n[DEBUG] get_onnx_maxpool_output_shape - Ceil mode: {}", .{ceil_mode});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - Input shape: {any}", .{input_shape});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - Kernel shape: {any}", .{kernel_shape});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - Strides: {any}", .{strides});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - Dilations: {any}", .{dilations});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - Pads: {any}", .{pads});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - AutoPad: {}", .{auto_pad});
+    // std.log.debug("\n[DEBUG] get_onnx_maxpool_output_shape - Ceil mode: {}", .{ceil_mode});
 
     if (input_shape.len != 4) {
-        std.debug.print("\n[DEBUG] ERROR: Invalid dimensions - input shape length is not 4", .{});
+        std.log.warn("\n[DEBUG] ERROR: Invalid dimensions - input shape length is not 4", .{});
         return TensorMathError.InvalidDimensions;
     }
 
@@ -523,8 +528,8 @@ pub fn get_onnx_maxpool_output_shape(
 
     // Handle special case: kernel larger than input
     if (kernel_shape[0] > input_height or kernel_shape[1] > input_width) {
-        std.debug.print("\n[DEBUG] WARNING: Kernel size ({},{}) > input dimensions ({},{})", .{ kernel_shape[0], kernel_shape[1], input_height, input_width });
-        std.debug.print("\n[DEBUG] Using special case: returning output with 1x1 spatial dimensions", .{});
+        std.log.warn("\n[DEBUG] WARNING: Kernel size ({},{}) > input dimensions ({},{})", .{ kernel_shape[0], kernel_shape[1], input_height, input_width });
+        std.log.debug("\n[DEBUG] Using special case: returning output with 1x1 spatial dimensions", .{});
 
         var output_shape = try pkg_allocator.alloc(usize, 4);
         output_shape[0] = batch_size;
@@ -834,7 +839,7 @@ pub fn lean_onnx_averagepool(
                         }
                     }
                     if (count == 0) {
-                        std.debug.print("Warning: count == 0 at oh={}, ow={}, ih_start={}, iw_start={}, pad_top={}, pad_left={}\n", .{ oh, ow, ih_start, iw_start, pad_top, pad_left });
+                        std.log.warn("Warning: count == 0 at oh={}, ow={}, ih_start={}, iw_start={}, pad_top={}, pad_left={}\n", .{ oh, ow, ih_start, iw_start, pad_top, pad_left });
                     }
                     // Store result
                     output.data[output_offset + oh * out_width + ow] = if (count > 0) sum / @as(T, @floatFromInt(count)) else 0;
@@ -988,4 +993,168 @@ pub fn get_onnx_averagepool_output_shape(
     output_shape[3] = out_width;
 
     return output_shape;
+}
+
+//--------------------------------------------------------------------------
+// lowerMaxPool2d — translate an ONNX *MaxPool-2D* node into UOps.
+//
+// HOST-SIDE PRE-PASS  (everything happens **before** this function is called)
+// ──────────────────────────────────────────────────────────────────────────
+// • Shapes
+//     X : (N, C, H, W)                    kernel : (kH, kW)
+// • Attributes
+//     pads[4]        = {padT, padL, padB, padR}   (default 0)
+//     strides[2]     = {strH, strW}               (default 1)
+//     dilations[2]   = {dilH, dilW}               (default 1)
+//     ceil_mode      = 0 | 1
+//
+// • Output spatial size  OH × OW
+//     if ceil_mode==0   OH = ⌊(H+padT+padB − dilH·(kH−1) − 1)/strH⌋ + 1
+//                        OW = ⌊(W+padL+padR − dilW·(kW−1) − 1)/strW⌋ + 1
+//     else               use ⌈…⌉ instead of ⌊…⌋
+//
+// • Stride vector for X   (row-major NCHW, elements)
+//       in_stride = [C·H·W,  H·W,  W, 1]
+//
+// • DType promotion (ONNX rules) → `out_dtype`
+//
+// The host passes: `out_shape=[N,C,OH,OW]`, `in_stride`, all pads/strides/
+// dilations, kernel size, and `out_dtype`.  The IR below is then *fully
+// static*: no dynamic shape logic remains.
+//--------------------------------------------------------------------------
+pub fn lowerMaxPool2d(
+    b: *UOpBuilder,
+    X_id: usize, // input tensor X
+    out_shape: []const usize, // [N, C, OH, OW]
+    in_stride: []const isize, // X strides (len 4)
+    pads: [2]usize, // {padT, padL}
+    strides_hw: [2]usize, // {strideH, strideW}
+    dil_hw: [2]usize, // {dilH, dilW}
+    kHW: [2]usize, // {kH, kW}
+    out_dtype: DType,
+    ceil_mode: bool,
+) usize {
+    // ── helpers --------------------------------------------------------
+    const H = struct {
+        fn rng(bi: *UOpBuilder, end: usize) usize {
+            return bi.push(.RANGE, .i32, &.{}, Any{ .loop_bounds = .{ .start = 0, .end = end } });
+        }
+        fn k(bi: *UOpBuilder, v: usize) usize {
+            return bi.push(.CONST, .i32, &.{}, Any{ .int = v });
+        }
+        fn fneg_inf(bi: *UOpBuilder) usize { // -∞  as float32
+            const negative_inf: f32 = -std.math.inf(f32);
+            return bi.push(.CONST, .f32, &.{}, Any{ .float = negative_inf });
+        }
+    };
+
+    // --- Derive input shape from strides ---
+    if (in_stride.len != 4 or in_stride[3] != 1) {
+        // Basic validation assuming dense NCHW row-major
+        @panic("lowerMaxPool2d expects dense NCHW input strides (..., W, 1)");
+    }
+    const W_in = @as(usize, @intCast(in_stride[2]));
+    const H_in = if (W_in == 0) @panic("Input W cannot be 0") else @as(usize, @intCast(in_stride[1])) / W_in;
+    const C_in = if (H_in * W_in == 0) @panic("Input H*W cannot be 0") else @as(usize, @intCast(in_stride[0])) / (H_in * W_in);
+    const N_in = out_shape[0]; // Assume input N matches output N
+    const derived_in_shape = [_]usize{ N_in, C_in, H_in, W_in };
+    // ---------------------------------------
+
+    // --- MOVE VIEW CREATION UP ---
+    // Create the VIEW of the input tensor first to ensure its ID is registered.
+    _ = b.push(.SHAPE, .i32, &.{X_id}, null); // Keep for potential debug/info
+    const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{
+        .view_meta = .{
+            .shape = &derived_in_shape, // <<< USE DERIVED INPUT SHAPE
+            .strides = in_stride,
+        },
+    });
+    // --- END MOVE ---
+
+    // ── constants ------------------------------------------------------
+    // Now create constants. Their IDs will be assigned *after* the VIEW.
+    const padT = H.k(b, pads[0]);
+    const padL = H.k(b, pads[1]);
+    const strH = H.k(b, strides_hw[0]);
+    const strW = H.k(b, strides_hw[1]);
+    const dilH = H.k(b, dil_hw[0]);
+    const dilW = H.k(b, dil_hw[1]);
+    const Hlim = H.k(b, H_in); // Use INPUT height for limit
+    const Wlim = H.k(b, W_in); // Use INPUT width for limit
+    const negInf = H.fneg_inf(b); // -∞ literal
+
+    if (ceil_mode) {
+        // TODO: Implement ceil mode adjustment
+    }
+
+    // ── view of X ------------------------------------------------------
+    // REMOVED: _ = b.push(.SHAPE, .i32, &.{X_id}, null); // debug only -- Already done above
+    // REMOVED: const id_viewX = b.push(.VIEW, out_dtype, &.{X_id}, Any{ .view_meta = .{ .shape = &.{ out_shape[0], out_shape[1], out_shape[2], out_shape[3] }, .strides = in_stride } }); -- Already done above
+
+    // output buffer Y
+    const id_Y = b.push(.DEFINE_GLOBAL, out_dtype, &.{}, Any{ .shape = out_shape });
+
+    // ── outer loops n · c · oh · ow ------------------------------------
+    const n = H.rng(b, out_shape[0]);
+    const c = H.rng(b, out_shape[1]);
+    const oh = H.rng(b, out_shape[2]);
+    const ow = H.rng(b, out_shape[3]);
+
+    // accumulator seeded to -∞
+    const acc = b.push(.DEFINE_ACC, out_dtype, &.{negInf}, null);
+
+    // ── kernel loops  kh · kw  -----------------------------------------
+    const kh = H.rng(b, kHW[0]);
+    const kw = H.rng(b, kHW[1]);
+
+    // ------ spatial indices ---------------------------------------
+    const ih = b.push(.SUB, .i32, &.{ b.push(.ADD, .i32, &.{ b.push(.MUL, .i32, &.{ oh, strH }, null), b.push(.MUL, .i32, &.{ kh, dilH }, null) }, null), padT }, null);
+
+    const iw = b.push(.SUB, .i32, &.{ b.push(.ADD, .i32, &.{ b.push(.MUL, .i32, &.{ ow, strW }, null), b.push(.MUL, .i32, &.{ kw, dilW }, null) }, null), padL }, null);
+
+    // ------ bounds check : 0 <= ih < H  &&  0 <= iw < W --------------
+    // Need boolean constants for WHERE
+    const bool_true = b.push(.CONST, .bool, &.{}, Any{ .bool = true });
+    const bool_false = b.push(.CONST, .bool, &.{}, Any{ .bool = false });
+
+    // Calculate: inside_h = (ih < Hlim) AND (NOT (ih < 0))
+    const cond_h_lo = b.push(.CMPLT, .bool, &.{ ih, H.k(b, 0) }, null); // B = (ih < 0)
+    const cond_h_hi = b.push(.CMPLT, .bool, &.{ ih, Hlim }, null); // A = (ih < Hlim)
+    const not_cond_h_lo = b.push(.WHERE, .bool, &.{ cond_h_lo, bool_false, bool_true }, null); // NOT B
+    const inside_h = b.push(.WHERE, .bool, &.{ cond_h_hi, not_cond_h_lo, bool_false }, null); // A AND (NOT B)
+
+    // Calculate: inside_w = (iw < Wlim) AND (NOT (iw < 0))
+    const cond_w_lo = b.push(.CMPLT, .bool, &.{ iw, H.k(b, 0) }, null); // B = (iw < 0)
+    const cond_w_hi = b.push(.CMPLT, .bool, &.{ iw, Wlim }, null); // A = (iw < Wlim)
+    const not_cond_w_lo = b.push(.WHERE, .bool, &.{ cond_w_lo, bool_false, bool_true }, null); // NOT B
+    const inside_w = b.push(.WHERE, .bool, &.{ cond_w_hi, not_cond_w_lo, bool_false }, null); // A AND (NOT B)
+
+    // Calculate: in_bounds = inside_h AND inside_w
+    const in_bounds = b.push(.WHERE, .bool, &.{ inside_h, inside_w, bool_false }, null); // inside_h AND inside_w
+
+    _ = b.push(.IF, .bool, &.{in_bounds}, null);
+
+    const pX = b.push(.GEP, out_dtype, &.{ id_viewX, n, c, ih, iw }, Any{ .mem_info = .{ .base = id_viewX, .offset = 0, .stride = 1 } });
+
+    const x = b.push(.LOAD, out_dtype, &.{pX}, null);
+    _ = b.push(.MAX, out_dtype, &.{ acc, x }, null);
+
+    _ = b.push(.ENDIF, .bool, &.{}, null);
+
+    // end kernel loops
+    _ = b.push(.ENDRANGE, .bool, &.{kw}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{kh}, null);
+
+    // ── write result ----------------------------------------------------
+    const pY = b.push(.GEP, out_dtype, &.{ id_Y, n, c, oh, ow }, Any{ .mem_info = .{ .base = id_Y, .offset = 0, .stride = 1 } });
+
+    _ = b.push(.STORE, out_dtype, &.{ pY, acc }, null);
+
+    // close outer loops
+    _ = b.push(.ENDRANGE, .bool, &.{ow}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{oh}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{c}, null);
+    _ = b.push(.ENDRANGE, .bool, &.{n}, null);
+
+    return id_Y;
 }

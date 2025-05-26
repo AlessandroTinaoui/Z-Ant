@@ -106,7 +106,7 @@ pub inline fn wrtiteTensorShape(writer: std.fs.File.Writer, t: *TensorProto, nam
 /// - `t`: The tensor initializer.
 /// - `name`: The sanitized name of the tensor.
 pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []const u8) !void {
-    std.debug.print("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
+    std.log.info("\n[writeArray] Processing tensor: {s}, DataType: {any}", .{ name, t.data_type });
 
     const dataTypeString: []const u8 = try utils.getTypeString(t.data_type);
 
@@ -146,13 +146,13 @@ pub inline fn writeArray(writer: std.fs.File.Writer, t: *TensorProto, name: []co
             .UINT8 => try writeRawData(writer, u8, raw),
             // TODO: Add other types as needed (e.g., FLOAT16, INT8, etc.)
             else => {
-                std.debug.print("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ t.data_type, name });
+                std.log.info("\n[writeArray] Error: Unsupported raw data type {any} for tensor {s}", .{ t.data_type, name });
                 std.log.err("Unsupported raw data type: {any}", .{t.data_type});
                 return error.DataTypeNotAvailable;
             },
         }
     } else {
-        std.debug.print("\n[writeArray] Error: No recognized data field (float_data, int_data, raw_data, etc.) found for tensor {s} with DataType {any}", .{ name, t.data_type });
+        std.log.info("\n[writeArray] Error: No recognized data field (float_data, int_data, raw_data, etc.) found for tensor {s} with DataType {any}", .{ name, t.data_type });
         return error.DataTypeNotAvailable;
     }
 

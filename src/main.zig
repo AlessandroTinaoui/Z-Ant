@@ -1,5 +1,6 @@
 const std = @import("std");
 const model_opts = @import("model_opts"); // Importa il modulo aggiunto in build.zig
+const main_log = std.log.scoped(.main);
 
 // Declare the external C ABI function exported by the static library
 // Assumes T = f32 based on build options
@@ -36,13 +37,13 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.debug.print("Preparing input data...\\n", .{});
+    main_log.info("Preparing input data...\\n", .{});
     const input_data = try prepareInputData(allocator);
     const input_shape = model_opts.input_shape;
 
     var output_ptr: [*]model_opts.data_type = undefined;
 
-    std.debug.print("Calling predict (via model_opts.lib)...\\n", .{});
+    main_log.info("Calling predict (via model_opts.lib)...\\n", .{});
 
     model_opts.lib.predict(
         input_data.ptr,
@@ -51,14 +52,14 @@ pub fn main() !void {
         &output_ptr,
     );
 
-    std.debug.print("Predict call finished.\n", .{});
+    main_log.info("Predict call finished.\n", .{});
 
     const output_size = getPredictOutputSize();
 
     // Check if output_ptr is null before creating slice
     // Use @intFromPtr to check if the pointer address is 0 (NULL)
     if (@intFromPtr(output_ptr) == 0) {
-        std.debug.print("Error: predict returned a null pointer.\n", .{});
+        main_log.info("Error: predict returned a null pointer.\n", .{});
         allocator.free(input_data);
         return;
     }
@@ -66,21 +67,21 @@ pub fn main() !void {
     const output_slice = @as([*]model_opts.data_type, @ptrCast(output_ptr))[0..output_size];
 
     //print the output
-    std.debug.print("Output (first 10 elements):\n", .{});
+    main_log.info("Output (first 10 elements):\n", .{});
     var i: usize = 0;
     while (i < output_slice.len and i < 10) : (i += 1) {
-        std.debug.print("{d}, ", .{output_slice[i]});
+        main_log.info("{d}, ", .{output_slice[i]});
     }
     if (output_slice.len > 10) {
-        std.debug.print("...\n", .{});
+        main_log.info("...\n", .{});
     } else {
-        std.debug.print("\n", .{});
+        main_log.info("\n", .{});
     }
 
-    std.debug.print("WARNING: Memory for the predict output was NOT freed!\n", .{});
+    main_log.warn("WARNING: Memory for the predict output was NOT freed!\n", .{});
 
-    std.debug.print("Attempting to free input memory...\\n", .{});
+    main_log.info("Attempting to free input memory...\\n", .{});
     allocator.free(input_data);
 
-    std.debug.print("Program finished.\\n", .{});
+    main_log.info("Program finished.\\n", .{});
 }

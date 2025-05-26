@@ -12,6 +12,8 @@ const OperatorSetIdProto = @import("onnx.zig").OperatorSetIdProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.functionProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L909
 //TAGS:
 // - 1 : name, optional string
@@ -233,22 +235,19 @@ pub const FunctionProto = struct {
         }
 
         std.debug.print("{s}Inputs: ", .{space});
-        for (self.input, 0..) |inp, i| {
-            if (i > 0) std.debug.print(", ", .{});
+        for (self.input) |inp| {
             std.debug.print("{s}", .{inp});
         }
         std.debug.print("\n", .{});
 
         std.debug.print("{s}Outputs: ", .{space});
-        for (self.output, 0..) |out, i| {
-            if (i > 0) std.debug.print(", ", .{});
+        for (self.output) |out| {
             std.debug.print("{s}{s} ", .{ space, out });
         }
         std.debug.print("\n", .{});
 
         std.debug.print("{s}Attributes: ", .{space});
-        for (self.attribute, 0..) |attr, i| {
-            if (i > 0) std.debug.print(", ", .{});
+        for (self.attribute) |attr| {
             std.debug.print("{s}{s} ", .{ space, attr });
         }
         std.debug.print("\n", .{});

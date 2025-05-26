@@ -5,6 +5,8 @@ const Tensor = zant.core.tensor.Tensor;
 const TensorError = zant.utils.error_handler.TensorError;
 const pkgAllocator = zant.utils.allocator;
 
+const tests_log = std.log.scoped(.test_lib_shape);
+
 const expect = std.testing.expect;
 
 test {
@@ -12,11 +14,11 @@ test {
 }
 
 test "Tensor test description" {
-    std.debug.print("\n--- Running tensor tests\n", .{});
+    tests_log.info("\n--- Running tensor tests\n", .{});
 }
 
 test "init() test" {
-    std.debug.print("\n     test: init() ", .{});
+    tests_log.info("\n     test: init() ", .{});
     const allocator = pkgAllocator.allocator;
     var tensor = try Tensor(f64).init(&allocator);
     defer tensor.deinit();
@@ -26,7 +28,7 @@ test "init() test" {
 }
 
 test "initialization fromShape" {
-    std.debug.print("\n     test:initialization fromShape", .{});
+    tests_log.info("\n     test:initialization fromShape", .{});
     const allocator = pkgAllocator.allocator;
     var shape: [2]usize = [_]usize{ 2, 3 };
     var tensor = try Tensor(f64).fromShape(&allocator, &shape);
@@ -40,7 +42,7 @@ test "initialization fromShape" {
 }
 
 test "Get_Set_Test" {
-    std.debug.print("\n     test:Get_Set_Test", .{});
+    tests_log.info("\n     test:Get_Set_Test", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][3]u8 = [_][3]u8{
@@ -58,7 +60,7 @@ test "Get_Set_Test" {
 }
 
 test "Flatten Index Test" {
-    std.debug.print("\n     test:Flatten Index Test", .{});
+    tests_log.info("\n     test:Flatten Index Test", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][3]u8 = [_][3]u8{
@@ -72,16 +74,16 @@ test "Flatten Index Test" {
     var indices = [_]usize{ 1, 2 };
     const flatIndex = try tensor.flatten_index(&indices);
 
-    //std.debug.print("\nflatIndex: {}\n", .{flatIndex});
+    //tests_log.info("\nflatIndex: {}\n", .{flatIndex});
     try std.testing.expect(flatIndex == 5);
     indices = [_]usize{ 0, 0 };
     const flatIndex2 = try tensor.flatten_index(&indices);
-    //std.debug.print("\nflatIndex2: {}\n", .{flatIndex2});
+    //tests_log.info("\nflatIndex2: {}\n", .{flatIndex2});
     try std.testing.expect(flatIndex2 == 0);
 }
 
 test "Get_at Set_at Test" {
-    std.debug.print("\n     test:Get_at Set_at Test", .{});
+    tests_log.info("\n     test:Get_at Set_at Test", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][3]u8 = [_][3]u8{
@@ -111,7 +113,7 @@ test "Get_at Set_at Test" {
 }
 
 test " copy() method" {
-    std.debug.print("\n     test:copy() method ", .{});
+    tests_log.info("\n     test:copy() method ", .{});
     const allocator = pkgAllocator.allocator;
 
     var inputArray: [2][3]u8 = [_][3]u8{
@@ -135,7 +137,7 @@ test " copy() method" {
 }
 
 test "to array " {
-    std.debug.print("\n     test:to array ", .{});
+    tests_log.info("\n     test:to array ", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -155,7 +157,7 @@ test "to array " {
 }
 
 test "test setToZero() " {
-    std.debug.print("\n     test: setToZero()", .{});
+    tests_log.info("\n     test: setToZero()", .{});
 
     const allocator = pkgAllocator.allocator;
 
@@ -187,7 +189,7 @@ test "test setToZero() " {
 }
 
 // test "slice_onnx basic slicing" {
-//     std.debug.print("\n     test: slice_onnx basic slicing", .{});
+//     tests_log.info("\n     test: slice_onnx basic slicing", .{});
 //     const allocator = pkgAllocator.allocator;
 
 //     // Test 1D tensor slicing
@@ -230,7 +232,7 @@ test "test setToZero() " {
 // }
 
 // test "slice_onnx negative indices" {
-//     std.debug.print("\n     test: slice_onnx negative indices", .{});
+//     tests_log.info("\n     test: slice_onnx negative indices", .{});
 //     const allocator = pkgAllocator.allocator;
 
 //     var input_array = [_]i32{ 1, 2, 3, 4, 5 };
@@ -250,7 +252,7 @@ test "test setToZero() " {
 // }
 
 // test "slice_onnx with steps" {
-//     std.debug.print("\n     test: slice_onnx with steps", .{});
+//     tests_log.info("\n     test: slice_onnx with steps", .{});
 //     const allocator = pkgAllocator.allocator;
 
 //     var input_array = [_]i32{ 1, 2, 3, 4, 5, 6 };
@@ -286,7 +288,7 @@ test "test setToZero() " {
 // }
 
 // test "slice_onnx with explicit axes" {
-//     std.debug.print("\n     test: slice_onnx with explicit axes", .{});
+//     tests_log.info("\n     test: slice_onnx with explicit axes", .{});
 //     const allocator = pkgAllocator.allocator;
 
 //     var input_array = [_][3]i32{
@@ -316,7 +318,7 @@ test "test setToZero() " {
 // }
 
 // test "slice_onnx error cases" {
-//     std.debug.print("\n     test: slice_onnx error cases", .{});
+//     tests_log.info("\n     test: slice_onnx error cases", .{});
 //     const allocator = pkgAllocator.allocator;
 
 //     var input_array = [_]i32{ 1, 2, 3, 4, 5 };
@@ -341,7 +343,7 @@ test "test setToZero() " {
 // }
 
 test "ensure_4D_shape" {
-    std.debug.print("\n     test: ensure_4D_shape ", .{});
+    tests_log.info("\n     test: ensure_4D_shape ", .{});
 
     //shape 1D
     const shape = [_]usize{5};
@@ -366,7 +368,7 @@ test "ensure_4D_shape" {
     try std.testing.expectEqual(result[3], 10);
 
     //shape 3D
-    std.debug.print("\n     test: ensure_4D_shape with 3 dimensions", .{});
+    tests_log.info("\n     test: ensure_4D_shape with 3 dimensions", .{});
 
     const shape_3 = [_]usize{ 5, 10, 15 };
     result = try Tensor(f32).ensure_4D_shape(&shape_3);
@@ -379,7 +381,7 @@ test "ensure_4D_shape" {
     try std.testing.expectEqual(result[3], 15);
 
     //shape 4D
-    std.debug.print("\n     test: ensure_4D_shape with 4 dimensions", .{});
+    tests_log.info("\n     test: ensure_4D_shape with 4 dimensions", .{});
 
     const shape_4 = [_]usize{ 5, 10, 15, 20 };
     result = try Tensor(f32).ensure_4D_shape(&shape_4);
@@ -392,7 +394,7 @@ test "ensure_4D_shape" {
     try std.testing.expectEqual(result[3], 20);
 
     // shape 5D --> check for error
-    std.debug.print("\n     test: ensure_4D_shape with 5 dimensions", .{});
+    tests_log.info("\n     test: ensure_4D_shape with 5 dimensions", .{});
 
     const shape_5 = [_]usize{ 5, 10, 15, 20, 25 };
 
@@ -400,7 +402,7 @@ test "ensure_4D_shape" {
 }
 
 test "benchmark flatten_index implementations" {
-    std.debug.print("\n     test: benchmark flatten_index implementations", .{});
+    tests_log.info("\n     test: benchmark flatten_index implementations", .{});
     const allocator = pkgAllocator.allocator;
 
     // Test with different tensor dimensions
@@ -426,7 +428,7 @@ test "benchmark flatten_index implementations" {
         const avg_original = total_original / benchmark_runs;
         const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-        std.debug.print("\n       1D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+        tests_log.info("\n       1D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
         // Ensure optimized is at least as fast as original
         try std.testing.expect(avg_optimized <= avg_original + 5);
@@ -451,7 +453,7 @@ test "benchmark flatten_index implementations" {
         const avg_original = total_original / benchmark_runs;
         const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-        std.debug.print("\n       2D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+        tests_log.info("\n       2D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
         try std.testing.expect(avg_optimized <= avg_original);
     }
@@ -475,7 +477,7 @@ test "benchmark flatten_index implementations" {
         const avg_original = total_original / benchmark_runs;
         const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-        std.debug.print("\n       3D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+        tests_log.info("\n       3D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
         try std.testing.expect(avg_optimized <= avg_original);
     }
@@ -499,7 +501,7 @@ test "benchmark flatten_index implementations" {
         const avg_original = total_original / benchmark_runs;
         const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-        std.debug.print("\n       4D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+        tests_log.info("\n       4D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
         try std.testing.expect(avg_optimized <= avg_original);
     }
@@ -523,7 +525,7 @@ test "benchmark flatten_index implementations" {
         const avg_original = total_original / benchmark_runs;
         const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-        std.debug.print("\n       5D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+        tests_log.info("\n       5D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
         try std.testing.expect(avg_optimized <= @as(u64, @intFromFloat(@as(f32, @floatFromInt(avg_original)) * 1.1)));
     }
@@ -547,7 +549,7 @@ test "benchmark flatten_index implementations" {
     //     const avg_original = total_original / benchmark_runs;
     //     const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-    //     std.debug.print("\n       6D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+    //     tests_log.info("\n       6D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
     //     try std.testing.expect(avg_optimized <= avg_original + 4);
     // }
@@ -571,7 +573,7 @@ test "benchmark flatten_index implementations" {
     //     const avg_original = total_original / benchmark_runs;
     //     const speedup = @as(f32, @floatFromInt(avg_original)) / @max(1, @as(f32, @floatFromInt(avg_optimized)));
 
-    //     std.debug.print("\n       7D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
+    //     tests_log.info("\n       7D tensor: optimized={d}ms, original={d}ms, speedup={d:.2}x", .{ avg_optimized, avg_original, speedup });
 
     //     try std.testing.expect(avg_optimized <= avg_original + 4);
     // }

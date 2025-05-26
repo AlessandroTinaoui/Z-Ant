@@ -6,10 +6,13 @@ const Tensor = zant.core.tensor.Tensor;
 const pkgAllocator = zant.utils.allocator;
 const allocator = pkgAllocator.allocator;
 
+const tests_log = std.log.scoped(.test_model);
+
 const model = @import("model_options.zig");
 
 test "Static Library - Random data Prediction Test" {
-    std.debug.print("\n     test: Static Library - {s} Random data Prediction Test\n", .{model.name});
+    std.testing.log_level = .info;
+    tests_log.info("\n     test: Static Library - {s} Random data Prediction Test\n", .{model.name});
 
     var input_shape = model.input_shape;
 
@@ -39,7 +42,7 @@ test "Static Library - Random data Prediction Test" {
     const LogFn = fn ([*c]u8) callconv(.C) void;
     const logFn: LogFn = struct {
         fn log(msg: [*c]u8) callconv(.C) void {
-            std.debug.print("{s}", .{msg});
+            tests_log.debug("{s}", .{msg});
         }
     }.log;
 
@@ -54,11 +57,13 @@ test "Static Library - Random data Prediction Test" {
         &result,
     );
 
-    std.debug.print("\nPrediction done without errors:\n", .{});
+    tests_log.info("\nPrediction done without errors:\n", .{});
 }
 
 test "Static Library - Wrong Input Shape" {
-    std.debug.print("\n     test: Static Library - {s} Wrong Input Shape\n", .{model.name});
+    std.testing.log_level = .info;
+
+    tests_log.info("\n     test: Static Library - {s} Wrong Input Shape\n", .{model.name});
 
     // Test with wrong input shape
 
@@ -106,7 +111,9 @@ test "Static Library - Wrong Input Shape" {
 }
 
 test "Static Library - Empty Input" {
-    std.debug.print("\n     test: Static Library - {s} Empty Input\n", .{model.name});
+    std.testing.log_level = .info;
+
+    tests_log.info("\n     test: Static Library - {s} Empty Input\n", .{model.name});
 
     // Test with empty input
     var input_data = [_]model.data_type{};
@@ -122,7 +129,9 @@ test "Static Library - Empty Input" {
 }
 
 test "Static Library - Wrong Number of Dimensions" {
-    std.debug.print("\n     test: Static Library - {s} Wrong Number of Dimensions\n", .{model.name});
+    std.testing.log_level = .info;
+
+    tests_log.info("\n     test: Static Library - {s} Wrong Number of Dimensions\n", .{model.name});
 
     const model_input_shape = model.input_shape;
 
@@ -154,10 +163,12 @@ test "Static Library - Wrong Number of Dimensions" {
 }
 
 test "Static Library - User data Prediction Test" {
-    std.debug.print("\n     test: Static Library - {s} User data Prediction Test\n", .{model.name});
+    std.testing.log_level = .info;
+
+    tests_log.info("\n     test: Static Library - {s} User data Prediction Test\n", .{model.name});
 
     if (!model.enable_user_tests) {
-        std.debug.print("\nUser tests are disabled for this model\n", .{});
+        tests_log.info("\nUser tests are disabled for this model\n", .{});
         return;
     }
 
@@ -165,7 +176,7 @@ test "Static Library - User data Prediction Test" {
     const LogFn = fn ([*c]u8) callconv(.C) void;
     const logFn: LogFn = struct {
         fn log(msg: [*c]u8) callconv(.C) void {
-            std.debug.print("{s}", .{msg});
+            tests_log.debug("{s}", .{msg});
         }
     }.log;
 
@@ -184,11 +195,10 @@ test "Static Library - User data Prediction Test" {
 
     const user_tests = parsed_user_tests.value;
 
-    std.debug.print("\nUser tests loaded.\n", .{});
+    tests_log.debug("\nUser tests loaded.\n", .{});
 
     for (user_tests) |user_test| {
-
-        std.debug.print("\n\tRunning user test: {s}\n\n", .{user_test.name});
+        tests_log.debug("\n\tRunning user test: {s}\n\n", .{user_test.name});
 
         try std.testing.expectEqual(user_test.input.len, input_data_len);
 
@@ -201,17 +211,16 @@ test "Static Library - User data Prediction Test" {
             input_shape.len,
             &result,
         );
-        
-        if (std.mem.eql(u8, user_test.type, "classify")) {
 
+        if (std.mem.eql(u8, user_test.type, "classify")) {
             var max_value: model.data_type = 0;
             // Find the class with maximum value
-            if(model.data_type == f32 or model.data_type == f64) {
+            if (model.data_type == f32 or model.data_type == f64) {
                 max_value = std.math.floatMin(model.data_type);
             } else {
                 max_value = std.math.minInt(model.data_type);
             }
-            
+
             var max_index: usize = 0;
             for (0..model.output_data_len) |i| {
                 const value = result[i];
@@ -220,29 +229,24 @@ test "Static Library - User data Prediction Test" {
                     max_index = i;
                 }
             }
-            
+
             try std.testing.expectEqual(user_test.expected_class, max_index);
-        }
-        else if(std.mem.eql(u8, user_test.type, "regress")) {
+        } else if (std.mem.eql(u8, user_test.type, "regress")) {
             for (0.., user_test.output) |i, expected_output| {
                 const result_value = result[i];
                 const expected_output_value = expected_output;
                 try std.testing.expectEqual(expected_output_value, result_value);
             }
-        }
-        else if(std.mem.eql(u8, user_test.type, "regress")) {
+        } else if (std.mem.eql(u8, user_test.type, "regress")) {
             // TODO: Calculate some sort of delta to compare the result with the expected output
             for (0.., user_test.output) |i, expected_output| {
                 const result_value = result[i];
                 const expected_output_value = expected_output;
                 try std.testing.expectEqual(expected_output_value, result_value);
             }
-        }
-        else {
-            std.debug.print("Unsupported test type: {s}\n", .{user_test.type});
+        } else {
+            tests_log.debug("Unsupported test type: {s}\n", .{user_test.type});
             try std.testing.expect(false);
         }
-
-        
     }
 }

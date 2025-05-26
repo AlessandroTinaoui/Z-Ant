@@ -11,6 +11,8 @@ const SparseTensorProto = @import("sparseTensorProto.zig").SparseTensorProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.graphProto);
+
 // onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L460
 //TAGS:
 //  - 1 : node, type: NodeProto repeated
@@ -180,7 +182,7 @@ pub const GraphProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    //std.debug.print("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
+                    //onnx_log.debug("\n\n ........default readLenghtDelimited, TAG:{any} \n", .{tag});
 
                     var unknown_reader = try reader.readLengthDelimited();
                     while (unknown_reader.hasMore()) {
@@ -207,12 +209,12 @@ pub const GraphProto = struct {
             return;
         };
 
-        std.debug.print("{s}------------- GRAPH\n", .{space});
+        onnx_log.info("{s}------------- GRAPH\n", .{space});
 
         if (self.name) |n| {
-            std.debug.print("{s}Graph Name: {s}\n", .{ space, n });
+            onnx_log.info("{s}Graph Name: {s}\n", .{ space, n });
         } else {
-            std.debug.print("{s}Graph Name: (none)\n", .{space});
+            onnx_log.info("{s}Graph Name: (none)\n", .{space});
         }
 
         std.debug.print("{s}Nodes:\n", .{space});

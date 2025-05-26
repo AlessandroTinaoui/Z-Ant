@@ -9,9 +9,11 @@ const TensorMathError = error_handler.TensorMathError;
 const TensorError = error_handler.TensorError;
 const ErrorHandler = error_handler;
 
+const tests_log = std.log.scoped(.test_mean);
+
 // Test per mean_standard e mean_lean
 test "mean_standard - basic case" {
-    std.debug.print("\n     test: mean_standard - basic case", .{});
+    tests_log.info("\n     test: mean_standard - basic case", .{});
     const allocator = std.testing.allocator;
     var shape1 = [_]usize{ 2, 2 };
     var shape2 = [_]usize{ 2, 2 };
@@ -32,7 +34,7 @@ test "mean_standard - basic case" {
 }
 
 test "mean_lean - basic case" {
-    std.debug.print("\n     test: mean_lean - basic case", .{});
+    tests_log.info("\n     test: mean_lean - basic case", .{});
     const allocator = pkgAllocator.allocator;
     // Stesso caso base, ma con mean_lean
     var shape1 = [_]usize{ 2, 2 };
@@ -56,7 +58,7 @@ test "mean_lean - basic case" {
 }
 
 test "mean_standard - broadcasting" {
-    std.debug.print("\n     test: mean_standard - broadcasting", .{});
+    tests_log.info("\n     test: mean_standard - broadcasting", .{});
     const allocator = pkgAllocator.allocator;
     // Test con broadcasting: [1, 3] e [2, 3]
     var shape1 = [_]usize{ 1, 3 };
@@ -79,7 +81,7 @@ test "mean_standard - broadcasting" {
 }
 
 test "mean_standard - single input" {
-    std.debug.print("\n     test: mean_standard - single input", .{});
+    tests_log.info("\n     test: mean_standard - single input", .{});
     const allocator = pkgAllocator.allocator;
     // Edge case: un solo tensore
     var shape1 = [_]usize{ 2, 2 };
@@ -96,7 +98,7 @@ test "mean_standard - single input" {
 }
 
 test "mean_standard - empty tensor list" {
-    std.debug.print("\n     test: mean_standard - empty tensor list", .{});
+    tests_log.info("\n     test: mean_standard - empty tensor list", .{});
     // Edge case: lista vuota
     const inputs = [_]*Tensor(f32){};
     const result = TensMath.mean_standard(f32, &inputs);
@@ -104,7 +106,7 @@ test "mean_standard - empty tensor list" {
 }
 
 test "mean_standard - invalid type" {
-    std.debug.print("\n     test: mean_standard - invalid type", .{});
+    tests_log.info("\n     test: mean_standard - invalid type", .{});
     const allocator = pkgAllocator.allocator;
     // Edge case: tipo non supportato (es. i32)
     var shape1 = [_]usize{ 2, 2 };
@@ -116,7 +118,7 @@ test "mean_standard - invalid type" {
     try std.testing.expectError(TensorMathError.InvalidDataType, TensMath.mean_standard(i32, &inputs));
 
     _ = TensMath.mean_standard(i32, &inputs) catch |err| {
-        std.debug.print("\n     Error: {s}", .{ErrorHandler.errorDetails(err)});
+        tests_log.warn("\n     Error: {s}", .{ErrorHandler.errorDetails(err)});
     };
 }
 
@@ -137,7 +139,7 @@ test "mean_standard - invalid type" {
 
 //     try std.testing.expectError(TensorMathError.MismatchedDataTypes, TensMath.mean_standard(f32, &inputs));
 //     _ = TensMath.mean_standard(f32, &inputs) catch |err| {
-//         std.debug.print("\n     Error: {s}", .{ErrorHandler.errorDetails(err)});
+//         tests_log.warn("\n     Error: {s}", .{ErrorHandler.errorDetails(err)});
 //     };
 
 //     t1.deinit();
@@ -145,7 +147,7 @@ test "mean_standard - invalid type" {
 // }
 
 test "mean_standard - multidimensional broadcasting" {
-    std.debug.print("\n     test: mean_standard - multidimensional broadcasting", .{});
+    tests_log.info("\n     test: mean_standard - multidimensional broadcasting", .{});
     const allocator = std.testing.allocator;
     var shape1 = [_]usize{ 1, 1, 2 };
     var shape2 = [_]usize{ 2, 2, 2 };

@@ -8,6 +8,8 @@ const StringStringEntryProto = @import("onnx.zig").StringStringEntryProto;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var printingAllocator = std.heap.ArenaAllocator.init(gpa.allocator());
 
+const onnx_log = std.log.scoped(.nodeProto);
+
 //onnx library reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L212
 //TAGS:
 //  - 1 : input, repeated string
@@ -126,7 +128,7 @@ pub const NodeProto = struct {
                     try metadataList.append(ssep_ptr);
                 },
                 else => {
-                    std.debug.print("\n\n ERROR: tag{} NOT AVAILABLE for NodeProto\n\n", .{tag});
+                    onnx_log.warn("\n\n ERROR: tag{} NOT AVAILABLE for NodeProto\n\n", .{tag});
                     try reader.skipField(tag.wire_type);
                 },
             }
@@ -161,15 +163,15 @@ pub const NodeProto = struct {
         }
 
         std.debug.print("{s}Inputs: ", .{space});
-        for (self.input, 0..) |inp, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{if (std.mem.eql(u8, inp, "")) "<empty_string>" else inp});
+        for (
+            self.input,
+        ) |inp| {
+            std.debug.print("{s}  -  ", .{if (std.mem.eql(u8, inp, "")) "<empty_string>" else inp});
         }
         std.debug.print("\n", .{});
 
         std.debug.print("{s}Outputs: ", .{space});
-        for (self.output, 0..) |out, i| {
-            if (i > 0) std.debug.print(", ", .{});
+        for (self.output) |out| {
             std.debug.print("{s}{s} ", .{ space, out });
         }
         std.debug.print("\n", .{});

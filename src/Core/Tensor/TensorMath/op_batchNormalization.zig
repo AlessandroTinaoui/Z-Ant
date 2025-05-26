@@ -47,7 +47,7 @@ pub inline fn batchNormalization_lean(
 ) !void {
     _ = momentum; //reduntant, used only for training
     if (training_mode) {
-        std.debug.print("\n\nERROR: training_mode not available for batchNormalization!! \n", .{});
+        std.log.warn("\n\nERROR: training_mode not available for batchNormalization!! \n", .{});
         return error.training_mode_NotAvailable;
     }
 
@@ -57,11 +57,11 @@ pub inline fn batchNormalization_lean(
     // Assume Channel dimension is axis 1 (common for NCHW)
     const C = input.shape[1];
     if (C != scales.size or C != B.size or C != input_mean.size or C != input_var.size) {
-        std.debug.print("ERROR: Channel size mismatch. Input C={}, Scale={}, B={}, Mean={}, Var={}\n", .{ C, scales.size, B.size, input_mean.size, input_var.size });
+        std.log.warn("ERROR: Channel size mismatch. Input C={}, Scale={}, B={}, Mean={}, Var={}\n", .{ C, scales.size, B.size, input_mean.size, input_var.size });
         return error.ChannelSizeMismatch;
     }
     if (output.shape.len != dims or !std.mem.eql(usize, output.shape, input.shape)) {
-        std.debug.print("ERROR: Output shape mismatch. Input={any}, Output={any}\n", .{ input.shape, output.shape });
+        std.log.warn("ERROR: Output shape mismatch. Input={any}, Output={any}\n", .{ input.shape, output.shape });
         return error.ShapeMismatch; // Ensure output shape matches input shape
     }
 
