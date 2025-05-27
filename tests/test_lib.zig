@@ -9,6 +9,7 @@ comptime {
     _ = @import("ImageToTensor/jpeg/test_jpeg_decoder.zig");
     _ = @import("ImageToTensor/test_utils.zig");
     _ = @import("CodeGen//renderer//test_zig_renderer.zig");
+    _ = @import("CodeGen//renderer//test_lower_math_from_nodeZant.zig");
     // _ = @import("IR_graph/IR_graph.zig");
 
     if (test_name.len == 0 or std.mem.eql(u8, test_name, "libElementWise")) {

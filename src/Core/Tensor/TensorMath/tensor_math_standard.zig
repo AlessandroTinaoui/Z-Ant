@@ -95,7 +95,6 @@ pub const addPaddingAndDilation = op_padding.addPaddingAndDilation;
 pub const neg = op_neg.neg;
 pub const neg_lean = op_neg.neg_lean;
 pub const get_neg_output_shape = op_neg.get_neg_output_shape;
-pub const lowerNeg = op_neg.lowerNeg;
 pub const flip = op_neg.flip_matrix;
 pub const flip_lean = op_neg.flip_matrix_lean;
 
@@ -179,8 +178,6 @@ pub const AutoPadType = pooling_math_lib.AutoPadType;
 pub const get_onnx_maxpool_output_shape = pooling_math_lib.get_onnx_maxpool_output_shape;
 pub const get_pooling_output_shape = pooling_math_lib.get_pooling_output_shape;
 pub const PoolingType = pooling_math_lib.PoolingType;
-
-pub const lowerMaxPool2d = pooling_math_lib.lowerMaxPool2d;
 
 pub const onnx_averagepool = pooling_math_lib.onnx_averagepool;
 pub const onnx_averagepool_lean = pooling_math_lib.lean_onnx_averagepool;
@@ -314,3 +311,7 @@ pub const lowerDiv = division.lowerDiv;
 pub const lowerTanh = tanhy.lowerTanh;
 pub const lowerMatMul = op_mat_mul.lowerMatMul;
 pub const lowerConv2d = convolution_math_lib.lowerConv2d;
+pub const lowerReLU = op_relu.lowerReLU;
+pub const lowerNeg = op_neg.lowerNeg;
+pub const lowerCeil = Ceil.lowerCeil;
+pub const lowerMaxPool2d = pooling_math_lib.lowerMaxPool2d;

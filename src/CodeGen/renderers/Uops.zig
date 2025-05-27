@@ -147,19 +147,39 @@ pub const Any = union(enum) {
 };
 
 pub const DTypeValue = union(DType) {
+    // Floating point types
+    f16: f16,
     f32: f32,
-    i32: i32,
+    f64: f64,
+
+    // Signed integer types
     i8: i8,
-    bool: bool,
+    i16: i16,
+    i32: i32,
+    i64: i64,
+
+    // Unsigned integer types
+    u8: u8,
     u16: u16,
+    u32: u32,
+    u64: u64,
+    // Boolean type
+    bool: bool,
 
     pub fn getDType(self: DTypeValue) DType {
         return switch (self) {
+            DTypeValue.f16 => DType.f16,
             DTypeValue.f32 => DType.f32,
-            DTypeValue.i32 => DType.i32,
+            DTypeValue.f64 => DType.f64,
             DTypeValue.i8 => DType.i8,
-            DTypeValue.bool => DType.bool,
+            DTypeValue.i16 => DType.i16,
+            DTypeValue.i32 => DType.i32,
+            DTypeValue.i64 => DType.i64,
+            DTypeValue.u8 => DType.u8,
             DTypeValue.u16 => DType.u16,
+            DTypeValue.u32 => DType.u32,
+            DTypeValue.u64 => DType.u64,
+            DTypeValue.bool => DType.bool,
         };
     }
 };
@@ -167,16 +187,26 @@ pub const DTypeValue = union(DType) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. DType – minimalist scalar element types
 // ─────────────────────────────────────────────────────────────────────────────
-pub const DType = enum { f32, i32, i8, bool, u16 };
+pub const DType = enum { f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64, bool };
 
 pub const DTypeInfo = struct {
     pub fn asString(dtype: DType) []const u8 {
         return switch (dtype) {
+            .f16 => "f16",
             .f32 => "f32",
-            .i32 => "i32",
+            .f64 => "f64",
+
             .i8 => "i8",
-            .bool => "bool",
+            .i16 => "i16",
+            .i32 => "i32",
+            .i64 => "i64",
+
+            .u8 => "u8",
             .u16 => "u16",
+            .u32 => "u32",
+            .u64 => "u64",
+
+            .bool => "bool",
         };
     }
 };

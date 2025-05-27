@@ -8,3 +8,4 @@ pub const utils = @import("utils.zig");
 pub const tests = @import("tests.zig");
 pub const zant_codegen = @import("main.zig").zant_codegen;
 pub const renderer = @import("renderers/zig_renderer.zig");
+pub const lower_math_handler = @import("lower_math_handler.zig");
