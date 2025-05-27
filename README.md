@@ -96,7 +96,6 @@ Z-Ant includes an experimental cross-platform GUI built with SDL for basic model
 
 ### 🎯 **Upcoming Milestones**
 
-- **Q3 2025**: MNIST inference on Raspberry Pi Pico 2 (Target: July 2025)
 - **Q4 2025**: Efficient YOLO deployment on edge devices
 
 ---
