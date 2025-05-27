@@ -182,7 +182,14 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     const inputs = model.graph.?.inputs;
     networkInput.name = inputs[0].name.?;
     // record input shape
-    networkInput.shape = inputs[0].type.?.tensor_type.?.shape.?.shape;
+    const input_shape_raw = inputs[0].type.?.tensor_type.?.shape.?.shape;
+    // Handle empty shapes (scalars) by treating them as [1]
+    if (input_shape_raw.len == 0) {
+        globals_log.info("\n Input has scalar shape (empty), treating as [1]", .{});
+        networkInput.shape = try allocator.dupe(i64, &[_]i64{1});
+    } else {
+        networkInput.shape = input_shape_raw;
+    }
     // Derive and store the input element type string (e.g., "f32", "u8")
     const raw_et: u32 = inputs[0].type.?.tensor_type.?.elem_type;
     const int_val = @as(i32, @intCast(raw_et));
@@ -197,13 +204,11 @@ pub fn setGlobalAttributes(model: ModelOnnx) !void {
     networkOutput.name = outputs[0].name.?;
     networkOutput.shape = outputs[0].type.?.tensor_type.?.shape.?.shape;
 
-    // Use -Dshape if provided, otherwise keep the ONNX model's shape
+    // Use -Dshape if provided, otherwise keep the ONNX model's shape (which we've already processed above)
     if (parsedInputshape.len > 0) {
         networkInput.shape = parsedInputshape;
-    } else if (networkInput.shape.len == 0) {
-        globals_log.warn("\n\n ERROR: \n     Input shape is necessary to proceed! \n     Ensure that the onnx model has one or compile with -Dshape=''<your_shape>''", .{});
-        return error.NoInputShape;
     }
+    // Note: We no longer need to check for empty shapes here since we handle them earlier
 
     // Print the final input details AFTER potentially overriding shape
     globals_log.info("\n FINAL networkInput \n name = {s} \n shape={any}", .{ networkInput.name, networkInput.shape });
