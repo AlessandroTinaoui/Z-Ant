@@ -16,6 +16,7 @@
 - [Project Status & Achievements](#project-status--achievements)
 - [Roadmap to Best-in-Class TinyML Engine](#roadmap-to-best-in-class-tinyml-engine)
 - [Getting Started for Contributors](#getting-started-for-contributors)
+- [ODHack14](#ODHack14)
 - [Development Workflow](#development-workflow)
 - [Using Z-Ant](#using-z-ant)
 - [Build System](#build-system)
@@ -292,6 +293,11 @@ We follow a structured branching strategy to ensure code quality and smooth coll
 - **Use Conventional Commits**: Follow commit message conventions (feat:, fix:, docs:, etc.)
 
 ---
+
+## ODHack14
+
+All the Hackaton-related issues are available with the tag **ODHack14**! Join us on telegram for the hackaton [https://t.me/ODHackZant](https://t.me/ODHackZant)
+
 
 ## 🔧 Using Z-Ant
 
