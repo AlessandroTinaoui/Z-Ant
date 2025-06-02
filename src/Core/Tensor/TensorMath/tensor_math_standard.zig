@@ -14,7 +14,6 @@ pub const reshape_lean = op_reshape.reshape_lean;
 pub const reshape_lean_f32 = op_reshape.reshape_lean_f32;
 pub const reshape_lean_common = op_reshape.reshape_lean_common;
 pub const get_reshape_output_shape = op_reshape.get_reshape_output_shape;
-pub const lowerReshape = op_reshape.lowerReshape;
 
 //---flatten
 const op_flatten = @import("lib_shape_math/op_flatten.zig");
@@ -51,7 +50,6 @@ const op_clip = @import("lib_elementWise_math/op_clip.zig");
 
 pub const clip = op_clip.clip;
 pub const clip_lean = op_clip.lean_clip;
-pub const lowerClip = op_clip.lowerClip;
 
 //--floor
 const op_floor = @import("lib_elementWise_math/op_floor.zig");
@@ -78,7 +76,6 @@ const op_identity = @import("lib_shape_math/op_identity.zig");
 pub const identity = op_identity.identity;
 pub const identity_lean = op_identity.identity_lean;
 pub const get_identity_output_shape = op_identity.get_identity_shape_output;
-pub const lowerIdentity = op_identity.lowerIdentity;
 
 // ---------- importing pooling methods ----------
 const op_transp = @import("lib_shape_math/op_transpose.zig");
@@ -315,3 +312,7 @@ pub const lowerReLU = op_relu.lowerReLU;
 pub const lowerNeg = op_neg.lowerNeg;
 pub const lowerCeil = Ceil.lowerCeil;
 pub const lowerMaxPool2d = pooling_math_lib.lowerMaxPool2d;
+pub const lowerSigmoid = op_sigmoid.lowerSigmoid;
+pub const lowerReshape = op_reshape.lowerReshape;
+pub const lowerIdentity = op_identity.lowerIdentity;
+pub const lowerClip = op_clip.lowerClip;
